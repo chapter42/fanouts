@@ -214,14 +214,26 @@ bijkomt.
 
 ## Privacy Policy
 
-**Privacy Policy URL** — ⬜ nog te publiceren
+**Privacy Policy URL** — ✅ live
 
-Voorstel: `https://chapter42.com/fanouts/privacy`
+```
+https://www.chapter42.com/privacybeleid-fanouts/
+```
 
-De pagina staat klaar als [`store-assets/privacy.html`](store-assets/privacy.html):
-één zelfstandig bestand zonder externe fonts, stylesheets of scripts, dus het laadt
-niets van buiten — passend bij wat het belooft. Upload het en pas de URL hierboven aan
-als je een ander pad kiest.
+Geverifieerd op 27 juli 2026: HTTP 200, en alle secties uit de brontekst staan erop.
+
+⚠️ **Eén punt om te regelen.** Cloudflare's e-mailverhulling maakt van het
+contactadres letterlijk `[email protected]` in de HTML; pas JavaScript vult het echte
+adres in. Een reviewer die de pagina in een browser bekijkt ziet het goed, maar wie
+hem zonder JavaScript ophaalt leest een tekst die op een niet-ingevulde placeholder
+lijkt — en "geen contactgegevens" is een afwijzingsgrond. Los dit op met één van:
+
+- Cloudflare → Scrape Shield → *Email Address Obfuscation* uitzetten voor deze pagina
+- het adres erbij zetten in een vorm die Cloudflare niet herschrijft (`roy [at] chapter42.com`)
+- een gewone link naar `https://www.chapter42.com/contact/` toevoegen
+
+De bronversie staat als [`store-assets/privacy.html`](store-assets/privacy.html):
+één zelfstandig bestand zonder externe fonts, stylesheets of scripts.
 
 De brontekst staat óók in [PRIVACY.md](PRIVACY.md), versiebeheerd naast de code zodat
 hij niet uit de pas kan lopen met wat de extensie doet. **Wijzig je één, wijzig dan de
@@ -281,7 +293,8 @@ takedown-meldingen naartoe. Houd het in de gaten.
 - [x] Store-icoon 128×128 aanwezig
 - [x] Schone ZIP via `npm run package` (alleen `manifest.json`, `icons/`, `src/`, `LICENSE`)
 - [x] Vijf screenshots op 1280×800 (`npm run screenshots`)
-- [ ] **Privacybeleid live op chapter42.com en de URL zelf gecontroleerd**
+- [x] Privacybeleid live en geverifieerd (HTTP 200, inhoud compleet)
+- [ ] **Contactadres leesbaar zonder JavaScript** — zie de waarschuwing hierboven
 - [ ] Data-disclosure-formulier ingevuld conform de tabel hierboven
 - [ ] Extensie uitgepakt getest op alle drie de assistenten, console schoon
 

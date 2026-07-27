@@ -3,8 +3,8 @@
 _Laatst bijgewerkt: 27 juli 2026 · geldt vanaf versie 0.3.4_
 
 > Dit is de brontekst. De gepubliceerde versie staat op
-> [chapter42.com/fanouts/privacy](https://chapter42.com/fanouts/privacy) en wordt
-> gegenereerd uit [`store-assets/privacy.html`](store-assets/privacy.html).
+> [https://www.chapter42.com/privacybeleid-fanouts/](https://www.chapter42.com/privacybeleid-fanouts/) en komt uit
+> [`store-assets/privacy.html`](store-assets/privacy.html).
 > Wijzig je hier iets, pas dan ook die pagina aan.
 
 Fanouts leest mee met je gesprekken op ChatGPT, Perplexity en Gemini. Dat is
