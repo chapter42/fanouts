@@ -471,10 +471,10 @@
 
   $('#btnResync').addEventListener('click', function () {
     var btn = this;
-    btn.disabled = true; btn.textContent = '↻ Bezig…';
+    btn.disabled = true; btn.textContent = '↻ Ophalen…';
     chrome.runtime.sendMessage({ type: 'fanout:resync-active' }, function (res) {
-      btn.disabled = false; btn.textContent = '↻ Sync conversatie';
-      if (!res || !res.ok) { toast((res && res.error) || 'Sync mislukt — staat ChatGPT open?', true); return; }
+      btn.disabled = false; btn.textContent = '↻ Historie ophalen';
+      if (!res || !res.ok) { toast((res && res.error) || 'Ophalen mislukt — staat ChatGPT open?', true); return; }
       toast(res.turns + ' turns opgehaald');
       load();
     });

@@ -138,8 +138,8 @@ hetzelfde turn-model, zodat analyse, UI en export niet per assistent verschillen
 
 **ChatGPT** — de streaming POST naar `/backend-api/conversation`, plus de GET
 `/backend-api/conversation/<id>` die de app zelf doet als je een oud gesprek opent
-(daarmee komt historie vanzelf binnen). De **Sync**-knop haalt de huidige conversatie
-desnoods expliciet op. Dit is de betrouwbaarste van de drie: ChatGPT geeft zijn
+(daarmee komt historie vanzelf binnen). De knop **↻ Historie ophalen** haalt de huidige
+conversatie desnoods expliciet op. Dit is de betrouwbaarste van de drie: ChatGPT geeft zijn
 zoekopdrachten expliciet prijs in de tool-call.
 
 **Perplexity** — de SSE-stream op `/rest/sse/perplexity_ask`. Het payloadformaat
@@ -196,7 +196,7 @@ Google de volgorde of de redirect-host, dan levert de extractie mínder op in pl
 een fout. Merk je dat Gemini-turns leeg blijven terwijl er wel gezocht is, dan is dat
 het signaal dat de patronen bijgesteld moeten worden.
 
-**Sync werkt alleen op ChatGPT.** Alleen daar is er een historie-endpoint dat de
+**Historie ophalen werkt alleen op ChatGPT.** Alleen daar is er een historie-endpoint dat de
 volledige conversatie teruggeeft. Bij Perplexity en Gemini wordt live meegelezen; open
 je een oud gesprek opnieuw, dan komt er geen nieuwe data binnen.
 

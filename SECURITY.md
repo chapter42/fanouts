@@ -7,8 +7,8 @@ terechtkomt, en wat er níét gebeurt.
 ## Kort
 
 - **Alles blijft lokaal.** Er is geen backend, geen analytics, geen telemetrie.
-- **Eén uitgaande aanroep**, alleen als je op *Sync* drukt, en die gaat naar
-  ChatGPT zelf om jóúw eigen gesprek op te halen.
+- **Eén uitgaande aanroep**, alleen als je op *Historie ophalen* drukt, en die
+  gaat naar ChatGPT zelf om jóúw eigen gesprek op te halen.
 - **Opslag is `chrome.storage.local`**, niet `chrome.storage.sync`. Je data reist
   niet mee met je Google-account of naar andere apparaten.
 
@@ -49,7 +49,7 @@ opname pauzeren met de knop in het paneel.
 
 De volledige extensie doet twee netwerkaanroepen, allebei in
 [`src/content/content.js`](src/content/content.js), allebei same-origin naar
-chatgpt.com, en allebei alleen wanneer je zelf op *Sync* klikt:
+chatgpt.com, en allebei alleen wanneer je zelf op *Historie ophalen* klikt:
 
 | Aanroep | Waarom |
 | --- | --- |
@@ -69,7 +69,7 @@ pagina toch al ophaalde.
 | --- | --- |
 | `storage`, `unlimitedStorage` | de opgenomen turns lokaal bewaren |
 | `sidePanel` | het zijpaneel openen |
-| `tabs` | de actieve AI-tab vinden voor de Sync-knop |
+| `tabs` | de actieve AI-tab vinden voor *Historie ophalen* |
 | `host_permissions` op 3 hosts | het meelezen op precies die hosts |
 
 `host_permissions` staat alleen op chatgpt.com, chat.openai.com, perplexity.ai en
@@ -90,8 +90,8 @@ kwaadwillende andere extensie of malware op je machine. Een extensie met
 `storage`-toegang tot dezelfde profielmap kan bij dezelfde data.
 
 De extensie omzeilt geen authenticatie, rate limits of gebruiksvoorwaarden. Ze
-leest alleen mee met verkeer dat je browser toch al genereert, en de Sync-knop
-gebruikt je eigen bestaande sessie.
+leest alleen mee met verkeer dat je browser toch al genereert, en *Historie
+ophalen* gebruikt je eigen bestaande sessie.
 
 ## Een kwetsbaarheid melden
 

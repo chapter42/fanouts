@@ -4,6 +4,14 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/), versienummers volgen
 [Semantic Versioning](https://semver.org/lang/nl/).
 
+## [0.3.1] — 2026-07-27
+
+### Gewijzigd
+- De knop **Sync** heet nu **Historie ophalen**. "Sync" suggereerde
+  tweerichtingsverkeer naar een server, terwijl het eenrichtingsverkeer *van*
+  ChatGPT naar je eigen schijf is. De tooltip zegt dat nu ook expliciet.
+  Gedrag is ongewijzigd.
+
 ## [0.3.0] — 2026-07-27
 
 ### Toegevoegd
@@ -66,7 +74,7 @@ Eerste versie. ChatGPT-only.
   inclusief de "sticky path"-optimalisatie waarbij vervolg-events alleen `{v:"…"}`
   bevatten.
 - Historie-route via de GET `/backend-api/conversation/<id>`, plus een
-  Sync-knop die de huidige conversatie expliciet ophaalt.
+  knop die de huidige conversatie expliciet ophaalt.
 - Extractie van fan-out queries, bronnen en citaties, met een deep-scan als
   vangnet voor formaatwijzigingen.
 - Lokale entiteit-extractie (NL/EN) uit prompt, queries, antwoord en brontitels,
@@ -77,6 +85,7 @@ Eerste versie. ChatGPT-only.
 - Instelling *mijn domeinen* voor share-of-voice-markering.
 - Testsuite die de echte interceptor in een nagebootste browser draait.
 
+[0.3.1]: https://github.com/chapter42/fanouts/releases/tag/v0.3.1
 [0.3.0]: https://github.com/chapter42/fanouts/releases/tag/v0.3.0
 [0.2.0]: https://github.com/chapter42/fanouts/releases/tag/v0.2.0
 [0.1.0]: https://github.com/chapter42/fanouts/releases/tag/v0.1.0

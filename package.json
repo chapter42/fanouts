@@ -1,6 +1,6 @@
 {
   "name": "fanouts",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Chrome-extensie die ChatGPT's query fan-out, bronnen en entiteiten vastlegt en exporteerbaar maakt.",
   "scripts": {

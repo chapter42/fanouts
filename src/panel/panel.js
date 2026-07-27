@@ -262,7 +262,7 @@
     if (!turns.length) {
       el.list.innerHTML = state.turns.length
         ? '<div class="empty"><strong>Niets in beeld</strong>Geen turns binnen dit filter. Zet het bereik op “Alles” of wis de zoekterm.</div>'
-        : '<div class="empty"><strong>Nog niets opgenomen</strong>Open ChatGPT, Perplexity of Gemini en stel een vraag waarbij het web geraadpleegd wordt. De fan-out verschijnt hier live.<br><br>Al een ChatGPT-gesprek open? Klik op <b>↻ Sync</b> hieronder om de historie op te halen.</div>';
+        : '<div class="empty"><strong>Nog niets opgenomen</strong>Open ChatGPT, Perplexity of Gemini en stel een vraag waarbij het web geraadpleegd wordt. De fan-out verschijnt hier live.<br><br>Al een ChatGPT-gesprek open? Klik rechtsboven op <b>↻</b> om de historie alsnog in te lezen.</div>';
       return;
     }
     el.list.innerHTML = turns.map(turnHtml).join('');
@@ -352,11 +352,11 @@
 
   el.resync.addEventListener('click', function () {
     el.resync.disabled = true;
-    el.resync.textContent = '↻ Bezig…';
+    el.resync.textContent = '⋯';
     chrome.runtime.sendMessage({ type: 'fanout:resync-active' }, function (res) {
       el.resync.disabled = false;
-      el.resync.textContent = '↻ Sync';
-      if (!res || !res.ok) { toast((res && res.error) || 'Sync mislukt', true); return; }
+      el.resync.textContent = '↻';
+      if (!res || !res.ok) { toast((res && res.error) || 'Ophalen mislukt', true); return; }
       toast(res.turns + ' turns opgehaald');
       load();
     });

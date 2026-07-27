@@ -152,7 +152,7 @@
   });
 
   /* --------------------------------------------------------------------- */
-  /* Handmatige hersync van de huidige conversatie                         */
+  /* Handmatig de historie van de huidige conversatie ophalen              */
   /* --------------------------------------------------------------------- */
 
   function accessToken() {
@@ -164,7 +164,7 @@
 
   function resync(conversationId) {
     if (PROVIDER !== 'chatgpt') {
-      return Promise.reject(new Error('Sync werkt alleen op ChatGPT — bij Perplexity en Gemini wordt live meegelezen'));
+      return Promise.reject(new Error('Historie ophalen werkt alleen op ChatGPT — bij Perplexity en Gemini wordt live meegelezen'));
     }
     var id = conversationId || conversationIdFromUrl();
     if (!id) return Promise.reject(new Error('Geen conversatie geopend'));
