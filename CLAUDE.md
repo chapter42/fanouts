@@ -11,10 +11,17 @@ afvangt, lokaal analyseert en exporteerbaar maakt. Vanilla JS, **geen build-stap
 geen dependencies**. `npm` wordt alleen gebruikt als scriptrunner.
 
 ```bash
-npm test        # 108 checks — draai dit na elke wijziging aan lib/ of inject/
+npm test        # projectregels + 108 gedragschecks — draai dit voor elke commit
+npm run check   # alleen de statische projectregels (snel)
 npm run preview # fixture + dev/*-preview.html om de UI te bekijken
 npm run icons   # iconen opnieuw genereren
 ```
+
+`tools/check.js` dwingt de harde regels hieronder machinaal af: geen
+dependencies, geen extra uitgaande aanroepen, geen `storage.sync`, geen extra
+permissies, geen hardgecodeerde kleuren, versies gelijk. Voeg je bewust iets toe
+dat een regel raakt, dan pas je de allowlist in dat bestand aan — die wijziging
+hoort zichtbaar in de PR-diff te staan.
 
 Testen in de echte browser: `chrome://extensions` → Ontwikkelaarsmodus →
 *Uitgepakte extensie laden* → deze map. Na een wijziging de extensie herladen én
@@ -173,6 +180,15 @@ sleutelpatronen in de provider controleren, niet de UI.
 
 ## Testen
 
+CI draait bij elke PR `tools/check.js` en `tools/test-parser.js` op Node 20, 22 en
+24 en bouwt de fixture en previews. Zie
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+De iconen worden **op pixelniveau** vergeleken met wat `make-icons.js` tekent,
+niet op bytes: `zlib` comprimeert per platform net anders, dus dezelfde tekening
+levert op Linux een andere PNG op dan op macOS. Een bytevergelijking faalde
+daardoor meteen in CI terwijl er niets mis was.
+
 `tools/test-parser.js` draait de **echte** interceptor en providers in een
 nagebootste browser (`vm` + fake `window`) over realistische payloads. Een nieuwe
 provider of formaatvariant hoort daar een sectie te krijgen, niet een unit-mock.
@@ -184,12 +200,110 @@ gesplitste frames worden getest. Houd dat zo.
 je het turn-model uit, werk die fixture dan bij zodat de previews representatief
 blijven.
 
-## Release
+## Versiebeleid
 
-1. `npm test` groen
-2. Versie gelijk in `manifest.json` **en** `package.json`
-3. Entry in [CHANGELOG.md](CHANGELOG.md) — inclusief bugs mét de reden dat ze niet
-   eerder opvielen
-4. Commit, `git tag -a vX.Y.Z`, push beide
+[Semver](https://semver.org/lang/nl/), en **in kleine stappen**. Eén logische
+wijziging per versie — niet vijf dingen opsparen tot één grote release.
 
-Remote: `chapter42/fanouts`, publiek, MIT. Push naar `main`.
+| Bump | Wanneer |
+| --- | --- |
+| **MAJOR** | breekt opgeslagen data of exports: turn-id-formaat, veldnamen in het turn-model, CSV-kolommen die verdwijnen of hernoemen, een instelling die anders werkt |
+| **MINOR** | nieuwe functionaliteit die niets breekt: een provider, een view, een exportvariant, een nieuw veld |
+| **PATCH** | bugfix, tekstwijziging, styling, refactor zonder gedragsverandering |
+
+Wat géén bump krijgt: wijzigingen aan `CLAUDE.md`, `README.md`, `tools/` of de
+testsuite. Die raken de extensie niet.
+
+Twijfel je tussen MINOR en PATCH? Vraag je af of iemand die de changelog leest
+iets nieuws kán doen. Zo ja, MINOR.
+
+**Retroactief niet corrigeren.** 0.2.0 en 0.3.0 zijn te grof gesneden — daar
+zaten meerdere features en losse bugfixes in één versie. Dat is gepubliceerd en
+getagd; laat het staan. Vanaf 0.3.1 geldt bovenstaande.
+
+### Changelog
+
+Elke PR die de extensie raakt voegt zijn regel toe onder `## [Unreleased]` in
+[CHANGELOG.md](CHANGELOG.md), onder `Toegevoegd` / `Gewijzigd` / `Opgelost`. Bij
+het uitbrengen wordt die kop vervangen door het versienummer en de datum, en komt
+er een verse lege `Unreleased` boven.
+
+Bij een bugfix hoort erbij **waarom hij niet eerder opviel**. Dat is de
+waardevolste regel in het bestand.
+
+## Werken met pull requests
+
+**Nooit rechtstreeks naar `main` committen.** Elke wijziging gaat via een branch
+en een PR — ook een eenregelige tekstfix, ook als je zeker weet dat het goed is.
+
+```bash
+git checkout main && git pull
+git checkout -b <type>/<korte-omschrijving>
+# werk, commit in logische stappen
+npm test
+git push -u origin HEAD
+gh pr create --fill    # of met eigen titel en body
+```
+
+Branchnamen: `feat/`, `fix/`, `docs/`, `chore/`, `refactor/`. Nederlands of
+Engels, maar kort en beschrijvend: `feat/claude-provider`, `fix/sticky-tabelkop`.
+
+### Eén PR = één onderwerp
+
+Dit is de kern van "kleine stappen". Ontdek je tijdens het werk een losstaande
+bug, fix die dan in een **aparte** PR. Een PR die een feature toevoegt én
+onderweg drie dingen opruimt, is niet te reviewen en niet terug te draaien.
+
+De sessie waarin 0.3.0 ontstond zou onder deze regel vier PR's zijn geweest:
+licht thema, antwoordtekst in exports, onzichtbare balkvulling, sticky tabelkop.
+
+### Wat er in een PR-body hoort
+
+Zie [`.github/pull_request_template.md`](.github/pull_request_template.md). Kort
+samengevat: wat, waarom, hoe getest, en welke bump het rechtvaardigt. Bij een
+bugfix ook hoe hij door de mazen kwam.
+
+Bij UI-wijzigingen een screenshot uit `npm run preview` — beoordeel die zelf
+vóór je de PR opent, niet erna.
+
+### Branch protection
+
+`main` is beschermd en dat geldt **ook voor de repo-eigenaar**. Een directe push
+wordt geweigerd met `GH006: Protected branch update failed`.
+
+| Regel | Stand |
+| --- | --- |
+| Wijzigingen alleen via PR | aan (0 approvals nodig — solo werkt dus door) |
+| Geldt ook voor admins | aan |
+| Force push | uit |
+| Branch verwijderen | uit |
+| Lineaire historie verplicht | aan (dus squash of rebase mergen, geen merge-commit) |
+| Openstaande discussies afronden | aan |
+| Verplichte status checks | `Node 20` / `Node 22` / `Node 24` |
+| Branch moet up-to-date zijn met main | aan |
+
+Merge-commits staan uit op repo-niveau; alleen squash en rebase blijven over.
+Dat voorkomt dat GitHub een knop aanbiedt die `required_linear_history`
+vervolgens weigert.
+
+Zit je vast en moet je er echt omheen, dan zet je hem tijdelijk uit en meteen
+weer aan:
+
+```bash
+gh api -X DELETE repos/chapter42/fanouts/branches/main/protection   # uit
+# … doe wat je moet doen …
+gh api -X PUT repos/chapter42/fanouts/branches/main/protection --input .github/branch-protection.json
+```
+
+Doe dat alleen als er echt geen PR-route is, en zet hem terug voor je verder gaat.
+
+### Mergen en uitbrengen
+
+1. `npm test` groen (lokaal) en CI groen op de PR
+2. Merge via GitHub (squash, zodat `main` één commit per onderwerp houdt)
+3. Verdient het een release? Dan een aparte kleine PR die versie in
+   `manifest.json` **en** `package.json` gelijk zet en de `Unreleased`-kop
+   vervangt
+4. Na merge: `git tag -a vX.Y.Z -m "…"` op `main` en pushen
+
+Remote: `chapter42/fanouts`, publiek, MIT.

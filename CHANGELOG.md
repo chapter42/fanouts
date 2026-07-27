@@ -4,6 +4,17 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/), versienummers volgen
 [Semantic Versioning](https://semver.org/lang/nl/).
 
+## [Unreleased]
+
+### Toegevoegd
+- CI op elke PR: `tools/check.js` en de testsuite op Node 20, 22 en 24, plus het
+  bouwen van fixture en previews.
+- `tools/check.js` — statische controle op de projectregels: geen dependencies,
+  geen extra uitgaande aanroepen, geen `chrome.storage.sync`, geen extra
+  permissies of host-matches, geen hardgecodeerde kleuren buiten de
+  themavariabelen, versies gelijk in manifest en package, en de iconen die
+  pixel-voor-pixel overeenkomen met hun generator.
+
 ## [0.3.1] — 2026-07-27
 
 ### Gewijzigd

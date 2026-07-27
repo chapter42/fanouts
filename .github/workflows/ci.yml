@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  # Geen branch-filter op pull_request: bij gestapelde PR's mikt de ene op de
+  # andere in plaats van op main, en die horen net zo goed getest te worden.
+  pull_request:
+  push:
+    branches: [main]
+
+# Alleen lezen: deze workflow hoeft niets terug te schrijven naar de repo.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '22', '24']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          # Bewust geen cache: dit project heeft geen dependencies en geen
+          # lockfile, dus er valt niets te cachen en npm ci zou falen.
+
+      - name: Projectregels controleren
+        run: node tools/check.js
+
+      - name: Testsuite
+        run: node tools/test-parser.js
+
+      - name: Fixture en previews bouwen
+        # Vangt fouten in de dev-tooling die de testsuite niet raakt.
+        run: |
+          node tools/make-fixture.js
+          node tools/make-previews.js
+
