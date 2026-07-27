@@ -16,6 +16,7 @@ npm run check   # alleen de statische projectregels (snel)
 npm run preview # fixture + dev/*-preview.html om de UI te bekijken
 npm run icons   # iconen opnieuw genereren
 npm run package # schone ZIP voor de Chrome Web Store
+npm run screenshots # store-screenshots op 1280×800 (vereist Chrome)
 ```
 
 `tools/check.js` dwingt de harde regels hieronder machinaal af: geen

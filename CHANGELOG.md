@@ -15,6 +15,13 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
   themavariabelen, versies gelijk in manifest en package, en de iconen die
   pixel-voor-pixel overeenkomen met hun generator.
 
+## [Unreleased]
+
+### Toegevoegd
+- `npm run screenshots` rendert de storescreenshots headless op exact 1280×800 uit
+  de echte UI, plus een zelfstandige privacypagina in `store-assets/privacy.html`
+  om op chapter42.com te publiceren.
+
 ## [0.3.4] — 2026-07-27
 
 ### Toegevoegd

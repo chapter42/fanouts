@@ -4,3 +4,4 @@ dev/*-preview.html
 node_modules/
 .claude/settings.local.json
 fanouts-v*.zip
+dev/.shots/
