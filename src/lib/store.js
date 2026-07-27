@@ -1,112 +1,102 @@
 /*
  * Fanouts — opslaglaag voor UI-contexten (paneel en dashboard).
+ *
+ * Elke functie geeft een promise terug; fouten worden hier niet opgevangen maar
+ * doorgegeven, zodat de aanroeper kan beslissen of de gebruiker iets moet zien.
  */
 ;(function (root) {
   'use strict';
 
-  var KEY_INDEX = 'fanout:index';
-  var KEY_ACTIVE = 'fanout:active';
-  var KEY_SETTINGS = 'fanout:settings';
-  var TURN_PREFIX = 'fanout:turn:';
+  const KEY_INDEX = 'fanout:index';
+  const KEY_ACTIVE = 'fanout:active';
+  const KEY_SETTINGS = 'fanout:settings';
+  const TURN_PREFIX = 'fanout:turn:';
 
-  var DEFAULT_SETTINGS = { myDomains: [], maxTurns: 800, capturePaused: false, theme: 'light' };
+  const DEFAULT_SETTINGS = { myDomains: [], maxTurns: 800, capturePaused: false, theme: 'light' };
 
-  function getSettings() {
-    return chrome.storage.local.get(KEY_SETTINGS).then(function (r) {
-      return Object.assign({}, DEFAULT_SETTINGS, r[KEY_SETTINGS] || {});
-    });
+  async function getSettings() {
+    const r = await chrome.storage.local.get(KEY_SETTINGS);
+    return Object.assign({}, DEFAULT_SETTINGS, r[KEY_SETTINGS] || {});
   }
 
-  function setSettings(patch) {
-    return getSettings().then(function (cur) {
-      var next = Object.assign({}, cur, patch);
-      var o = {}; o[KEY_SETTINGS] = next;
-      return chrome.storage.local.set(o).then(function () { return next; });
-    });
+  async function setSettings(patch) {
+    const next = Object.assign({}, await getSettings(), patch);
+    await chrome.storage.local.set({ [KEY_SETTINGS]: next });
+    return next;
   }
 
-  function getActive() {
-    return chrome.storage.local.get(KEY_ACTIVE).then(function (r) { return r[KEY_ACTIVE] || null; });
+  async function getActive() {
+    const r = await chrome.storage.local.get(KEY_ACTIVE);
+    return r[KEY_ACTIVE] || null;
   }
 
-  function getTurns() {
-    return chrome.storage.local.get(KEY_INDEX).then(function (r) {
-      var index = Array.isArray(r[KEY_INDEX]) ? r[KEY_INDEX] : [];
-      if (!index.length) return [];
-      var keys = index.map(function (id) { return TURN_PREFIX + id; });
-      return chrome.storage.local.get(keys).then(function (all) {
-        var out = [];
-        index.forEach(function (id) {
-          var t = all[TURN_PREFIX + id];
-          if (t) out.push(t);
-        });
-        out.sort(function (a, b) { return (b.createdAt || 0) - (a.createdAt || 0); });
-        return out;
-      });
-    });
+  async function getIndex() {
+    const r = await chrome.storage.local.get(KEY_INDEX);
+    return Array.isArray(r[KEY_INDEX]) ? r[KEY_INDEX] : [];
   }
 
-  function deleteTurn(id) {
-    return chrome.storage.local.get(KEY_INDEX).then(function (r) {
-      var index = (r[KEY_INDEX] || []).filter(function (x) { return x !== id; });
-      var o = {}; o[KEY_INDEX] = index;
-      return chrome.storage.local.set(o).then(function () {
-        return chrome.storage.local.remove(TURN_PREFIX + id);
-      });
+  async function getTurns() {
+    const index = await getIndex();
+    if (!index.length) return [];
+
+    const all = await chrome.storage.local.get(index.map((id) => TURN_PREFIX + id));
+    const out = [];
+    index.forEach((id) => {
+      const turn = all[TURN_PREFIX + id];
+      if (turn) out.push(turn);
     });
+    out.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    return out;
   }
 
-  function clearAll() {
-    return chrome.storage.local.get(KEY_INDEX).then(function (r) {
-      var keys = (r[KEY_INDEX] || []).map(function (id) { return TURN_PREFIX + id; });
-      var o = {}; o[KEY_INDEX] = [];
-      return chrome.storage.local.set(o).then(function () {
-        return keys.length ? chrome.storage.local.remove(keys) : null;
-      });
-    });
+  async function deleteTurn(id) {
+    const index = (await getIndex()).filter((x) => x !== id);
+    await chrome.storage.local.set({ [KEY_INDEX]: index });
+    await chrome.storage.local.remove(TURN_PREFIX + id);
   }
 
-  function clearConversation(conversationId) {
-    return getTurns().then(function (turns) {
-      var drop = turns.filter(function (t) { return t.conversationId === conversationId; }).map(function (t) { return t.id; });
-      return chrome.storage.local.get(KEY_INDEX).then(function (r) {
-        var index = (r[KEY_INDEX] || []).filter(function (x) { return drop.indexOf(x) === -1; });
-        var o = {}; o[KEY_INDEX] = index;
-        return chrome.storage.local.set(o).then(function () {
-          return drop.length ? chrome.storage.local.remove(drop.map(function (id) { return TURN_PREFIX + id; })) : null;
-        });
-      });
-    });
+  async function clearAll() {
+    const keys = (await getIndex()).map((id) => TURN_PREFIX + id);
+    await chrome.storage.local.set({ [KEY_INDEX]: [] });
+    if (keys.length) await chrome.storage.local.remove(keys);
+  }
+
+  async function clearConversation(conversationId) {
+    const turns = await getTurns();
+    const drop = turns.filter((t) => t.conversationId === conversationId).map((t) => t.id);
+    if (!drop.length) return 0;
+
+    const index = (await getIndex()).filter((x) => drop.indexOf(x) === -1);
+    await chrome.storage.local.set({ [KEY_INDEX]: index });
+    await chrome.storage.local.remove(drop.map((id) => TURN_PREFIX + id));
+    return drop.length;
   }
 
   /* Her-analyseert alle turns, bv. na wijziging van "mijn domeinen". */
-  function reanalyseAll() {
-    return Promise.all([getTurns(), getSettings()]).then(function (res) {
-      var turns = res[0], settings = res[1];
-      var patch = {};
-      turns.forEach(function (t) {
-        root.FanoutAnalysis.analyseTurn(t, settings);
-        patch[TURN_PREFIX + t.id] = t;
-      });
-      return chrome.storage.local.set(patch).then(function () { return turns; });
+  async function reanalyseAll() {
+    const [turns, settings] = await Promise.all([getTurns(), getSettings()]);
+    const patch = {};
+    turns.forEach((t) => {
+      root.FanoutAnalysis.analyseTurn(t, settings);
+      patch[TURN_PREFIX + t.id] = t;
     });
+    if (turns.length) await chrome.storage.local.set(patch);
+    return turns;
   }
 
   function onChange(cb) {
-    chrome.storage.onChanged.addListener(function (changes, area) {
+    chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== 'local') return;
-      var relevant = Object.keys(changes).some(function (k) {
-        return k === KEY_INDEX || k === KEY_ACTIVE || k.indexOf(TURN_PREFIX) === 0;
-      });
+      const relevant = Object.keys(changes).some(
+        (k) => k === KEY_INDEX || k === KEY_ACTIVE || k.indexOf(TURN_PREFIX) === 0
+      );
       if (relevant) cb(changes);
     });
   }
 
-  function usage() {
-    if (!chrome.storage.local.getBytesInUse) return Promise.resolve(null);
-    return new Promise(function (resolve) {
-      chrome.storage.local.getBytesInUse(null, function (bytes) { resolve(bytes); });
-    });
+  async function usage() {
+    if (!chrome.storage.local.getBytesInUse) return null;
+    return chrome.storage.local.getBytesInUse(null);
   }
 
   /* Zet het thema op <html>; licht is de standaard. */
@@ -115,19 +105,19 @@
   }
 
   root.FanoutStore = {
-    applyTheme: applyTheme,
-    DEFAULT_SETTINGS: DEFAULT_SETTINGS,
-    getTurns: getTurns,
-    getActive: getActive,
-    getSettings: getSettings,
-    setSettings: setSettings,
-    deleteTurn: deleteTurn,
-    clearAll: clearAll,
-    clearConversation: clearConversation,
-    reanalyseAll: reanalyseAll,
-    onChange: onChange,
-    usage: usage,
-    KEY_INDEX: KEY_INDEX,
-    TURN_PREFIX: TURN_PREFIX
+    applyTheme,
+    DEFAULT_SETTINGS,
+    getTurns,
+    getActive,
+    getSettings,
+    setSettings,
+    deleteTurn,
+    clearAll,
+    clearConversation,
+    reanalyseAll,
+    onChange,
+    usage,
+    KEY_INDEX,
+    TURN_PREFIX
   };
 })(typeof self !== 'undefined' ? self : this);

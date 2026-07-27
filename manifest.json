@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Fanouts — AI query fan-out monitor",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Legt de verborgen zoekopdrachten (query fan-out), bronnen en entiteiten achter elk antwoord van ChatGPT, Perplexity en Gemini vast en maakt ze analyseerbaar en exporteerbaar.",
   "permissions": [
     "storage",

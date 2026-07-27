@@ -170,8 +170,13 @@ sleutelpatronen in de provider controleren, niet de UI.
 ## Stijl
 
 - **Nederlands** in UI, comments, docs en commitberichten. Identifiers Engels.
-- ES5-achtige `var`/`function` in `src/` (klassieke scripts, geen transpiler).
-  De service worker en `tools/` mogen modern zijn.
+- Klassieke scripts in `src/` (geen ES-modules, want content scripts delen
+  globals) — maar wél moderne syntax: **`async`/`await`, nooit `.then()`-ketens**.
+  Dat is Chrome's eigen richtlijn voor extensies en `check.js` dwingt het af. De
+  enige uitzondering staat in de allowlist daar: de fetch-wrapper geeft de
+  response bewust ongeawait door, zodat meelezen de host-app niet kan vertragen.
+- **Elke async-operatie heeft foutafhandeling.** Faalt opslag, dan hoort de
+  gebruiker een toast te zien, niet niets.
 - Comments leggen uit **waarom**, niet wat. De bestaande dichtheid is de norm:
   een blok boven een niet-vanzelfsprekende aanpak, verder niets.
 - Kleuren **altijd** via tokens uit `ui.css`. Nieuwe tinten met

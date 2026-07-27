@@ -183,6 +183,24 @@ ok(/openPanelOnActionClick/.test(sw) && !/openPanelOnActionIconClick/.test(sw),
 ok(!manifest.action || !manifest.action.default_popup,
   'geen default_popup naast setPanelBehavior — die zou onClicked blokkeren');
 
+/*
+ * 4f. Async-stijl. Chrome's eigen richtlijn is expliciet: async/await, geen
+ * .then()-ketens. De uitzondering is de fetch-wrapper, die de response bewust
+ * ongeawait doorgeeft zodat het meelezen de host-app niet kan vertragen.
+ */
+const THEN_ALLOWLIST = [
+  { file: 'src/inject/interceptor.js', pattern: 'pending.then(' }
+];
+const strayThen = [];
+srcJs.forEach(function (f) {
+  read(f).split('\n').forEach(function (line, i) {
+    if (line.indexOf('.then(') === -1) return;
+    const allowed = THEN_ALLOWLIST.some(function (a) { return a.file === f && line.indexOf(a.pattern) !== -1; });
+    if (!allowed) strayThen.push(f + ':' + (i + 1) + '  ' + line.trim().slice(0, 70));
+  });
+});
+ok(strayThen.length === 0, 'async/await in plaats van .then()-ketens', strayThen.join(' | '));
+
 /* ===================================================================== */
 section('5. Thema-discipline');
 

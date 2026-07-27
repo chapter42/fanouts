@@ -15,6 +15,25 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
   themavariabelen, versies gelijk in manifest en package, en de iconen die
   pixel-voor-pixel overeenkomen met hun generator.
 
+## [0.3.3] — 2026-07-27
+
+### Gewijzigd
+- Alle asynchrone code in `src/` gebruikt nu `async`/`await` in plaats van
+  `.then()`-ketens — Chrome's eigen richtlijn voor extensies. Eén gemotiveerde
+  uitzondering: de fetch-wrapper geeft de response bewust ongeawait door, zodat
+  meelezen de host-app geen enkele tick kan vertragen. `check.js` bewaakt dat.
+
+### Opgelost
+- **Falende opslag was onzichtbaar.** Acht promise-ketens hadden geen
+  foutafhandeling: liep `storage.local` vast op quota of een onbereikbare
+  database, dan gebeurde er zichtbaar niets — geen melding, geen log. Verwijderen,
+  instellingen opslaan, thema wisselen en alles wissen melden nu een fout. Kan de
+  opslag helemaal niet gelezen worden, dan tonen paneel en dashboard dat in
+  plaats van leeg te blijven. Viel niet eerder op omdat `storage.local` in normaal
+  gebruik vrijwel nooit faalt.
+- Het thema wordt nu meteen toegepast en pas daarna bewaard, zodat de wissel ook
+  zichtbaar is als het opslaan mislukt.
+
 ## [0.3.2] — 2026-07-27
 
 ### Opgelost
@@ -111,6 +130,7 @@ Eerste versie. ChatGPT-only.
 - Instelling *mijn domeinen* voor share-of-voice-markering.
 - Testsuite die de echte interceptor in een nagebootste browser draait.
 
+[0.3.3]: https://github.com/chapter42/fanouts/releases/tag/v0.3.3
 [0.3.2]: https://github.com/chapter42/fanouts/releases/tag/v0.3.2
 [0.3.1]: https://github.com/chapter42/fanouts/releases/tag/v0.3.1
 [0.3.0]: https://github.com/chapter42/fanouts/releases/tag/v0.3.0

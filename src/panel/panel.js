@@ -57,6 +57,13 @@
     return new Date(ts).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
   }
 
+  function errText(err) { return String((err && err.message) || err || 'onbekende fout'); }
+
+  // Voor fire-and-forget acties: laat de gebruiker het weten als het misgaat.
+  function run(promise, label) {
+    promise.catch(function (err) { toast(label + ': ' + errText(err), true); });
+  }
+
   var toastTimer;
   function toast(msg, isErr) {
     el.toast.textContent = msg;
@@ -304,7 +311,13 @@
     }
 
     var del = e.target.closest('[data-turn-delete]');
-    if (del) { self.FanoutStore.deleteTurn(id).then(load); return; }
+    if (del) {
+      run((async function () {
+        await self.FanoutStore.deleteTurn(id);
+        await load();
+      })(), 'Verwijderen mislukt');
+      return;
+    }
 
     if (e.target.closest('.turn-head')) {
       state.open[id] = !state.open[id];
@@ -332,18 +345,26 @@
   el.search.addEventListener('input', function () { state.filter = el.search.value; render(); });
   el.scope.addEventListener('change', function () { state.scope = el.scope.value; render(); });
 
-  el.pause.addEventListener('click', function () {
-    self.FanoutStore.setSettings({ capturePaused: !state.settings.capturePaused }).then(function (s) {
-      state.settings = s;
-      toast(s.capturePaused ? 'Opname gepauzeerd' : 'Opname hervat');
+  el.pause.addEventListener('click', async function () {
+    try {
+      state.settings = await self.FanoutStore.setSettings({ capturePaused: !state.settings.capturePaused });
+      toast(state.settings.capturePaused ? 'Opname gepauzeerd' : 'Opname hervat');
       render();
-    });
+    } catch (err) {
+      toast('Instelling opslaan mislukt: ' + errText(err), true);
+    }
   });
 
-  el.theme.addEventListener('click', function () {
+  el.theme.addEventListener('click', async function () {
     var next = state.settings.theme === 'dark' ? 'light' : 'dark';
-    self.FanoutStore.applyTheme(next);
-    self.FanoutStore.setSettings({ theme: next }).then(function (s) { state.settings = s; render(); });
+    self.FanoutStore.applyTheme(next);   // meteen zichtbaar, ook als opslaan faalt
+    try {
+      state.settings = await self.FanoutStore.setSettings({ theme: next });
+    } catch (err) {
+      state.settings.theme = next;
+      toast('Thema onthouden mislukt — geldt alleen voor nu', true);
+    }
+    render();
   });
 
   el.dashboard.addEventListener('click', function () {
@@ -376,18 +397,22 @@
   /* ----------------------------------------------------------------- load */
 
   var loadTimer = null;
-  function load() {
-    return Promise.all([
-      self.FanoutStore.getTurns(),
-      self.FanoutStore.getActive(),
-      self.FanoutStore.getSettings()
-    ]).then(function (res) {
+  async function load() {
+    try {
+      var res = await Promise.all([
+        self.FanoutStore.getTurns(),
+        self.FanoutStore.getActive(),
+        self.FanoutStore.getSettings()
+      ]);
       state.turns = res[0];
       state.active = res[1];
       state.settings = res[2];
       self.FanoutStore.applyTheme(state.settings.theme);
       render();
-    });
+    } catch (err) {
+      el.list.innerHTML = '<div class="empty"><strong>Opslag onbereikbaar</strong>' +
+        esc(errText(err)) + '<br><br>Herlaad de extensie via chrome://extensions.</div>';
+    }
   }
 
   self.FanoutStore.onChange(function () {

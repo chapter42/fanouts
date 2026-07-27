@@ -18,9 +18,14 @@
   var writeQueue = [];
   var writeTimer = null;
 
-  chrome.storage.local.get(KEY_SETTINGS, function (r) {
-    if (r && r[KEY_SETTINGS]) settings = Object.assign(settings, r[KEY_SETTINGS]);
-  });
+  (async () => {
+    try {
+      const stored = await chrome.storage.local.get(KEY_SETTINGS);
+      if (stored && stored[KEY_SETTINGS]) settings = Object.assign(settings, stored[KEY_SETTINGS]);
+    } catch (err) {
+      console.warn('[Fanouts] kon instellingen niet lezen, gebruikt standaarden', err);
+    }
+  })();
 
   chrome.storage.onChanged.addListener(function (changes, area) {
     if (area === 'local' && changes[KEY_SETTINGS] && changes[KEY_SETTINGS].newValue) {
@@ -61,51 +66,57 @@
       url: location.href,
       at: Date.now()
     };
-    chrome.storage.local.set(patch);
+    chrome.storage.local.set(patch).catch(function (err) {
+      console.warn('[Fanouts] kon de actieve conversatie niet vastleggen', err);
+    });
   }
 
   /* --------------------------------------------------------------------- */
   /* Opslag                                                                */
   /* --------------------------------------------------------------------- */
 
-  function flush() {
+  async function flush() {
     writeTimer = null;
-    var batch = writeQueue.splice(0, writeQueue.length);
+    const batch = writeQueue.splice(0, writeQueue.length);
     if (!batch.length) return;
 
     // Dedupe per turn-id: alleen de laatste versie is relevant.
-    var byId = {};
-    batch.forEach(function (t) { byId[t.id] = t; });
-    var ids = Object.keys(byId);
-    var keys = ids.map(function (id) { return TURN_PREFIX + id; }).concat([KEY_INDEX]);
+    const byId = {};
+    batch.forEach((t) => { byId[t.id] = t; });
+    const ids = Object.keys(byId);
 
-    chrome.storage.local.get(keys, function (stored) {
-      var index = Array.isArray(stored[KEY_INDEX]) ? stored[KEY_INDEX] : [];
-      var patch = {};
-      var indexChanged = false;
+    try {
+      const stored = await chrome.storage.local.get(
+        ids.map((id) => TURN_PREFIX + id).concat([KEY_INDEX])
+      );
+      const index = Array.isArray(stored[KEY_INDEX]) ? stored[KEY_INDEX] : [];
+      const patch = {};
+      let indexChanged = false;
 
-      ids.forEach(function (id) {
-        var key = TURN_PREFIX + id;
-        var merged = self.FanoutParser.mergeTurn(stored[key] || null, byId[id]);
+      ids.forEach((id) => {
+        const key = TURN_PREFIX + id;
+        const merged = self.FanoutParser.mergeTurn(stored[key] || null, byId[id]);
         self.FanoutAnalysis.analyseTurn(merged, settings);
         patch[key] = merged;
-        var pos = index.indexOf(id);
-        if (pos === -1) { index.push(id); indexChanged = true; }
+        if (index.indexOf(id) === -1) { index.push(id); indexChanged = true; }
       });
 
-      var max = settings.maxTurns || DEFAULT_MAX_TURNS;
-      var removeKeys = [];
+      const max = settings.maxTurns || DEFAULT_MAX_TURNS;
+      let removeKeys = [];
       if (index.length > max) {
-        var drop = index.splice(0, index.length - max);
-        removeKeys = drop.map(function (id) { return TURN_PREFIX + id; });
+        removeKeys = index.splice(0, index.length - max).map((id) => TURN_PREFIX + id);
         indexChanged = true;
       }
 
       if (indexChanged) patch[KEY_INDEX] = index;
-      chrome.storage.local.set(patch, function () {
-        if (removeKeys.length) chrome.storage.local.remove(removeKeys);
-      });
-    });
+      await chrome.storage.local.set(patch);
+      if (removeKeys.length) await chrome.storage.local.remove(removeKeys);
+    } catch (err) {
+      // Quota vol of opslag onbereikbaar. De turns zijn uit de wachtrij, dus
+      // deze batch is verloren — maar de volgende stream-update levert ze
+      // opnieuw aan, dus doorgaan is beter dan de opname stilleggen.
+      console.error('[Fanouts] wegschrijven mislukt; deze batch is niet opgeslagen', err);
+    }
   }
 
   function queueTurns(turns) {
@@ -155,50 +166,59 @@
   /* Handmatig de historie van de huidige conversatie ophalen              */
   /* --------------------------------------------------------------------- */
 
-  function accessToken() {
-    return fetch('/api/auth/session', { credentials: 'include' })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (j) { return (j && j.accessToken) || null; })
-      .catch(function () { return null; });
-  }
-
-  function resync(conversationId) {
-    if (PROVIDER !== 'chatgpt') {
-      return Promise.reject(new Error('Historie ophalen werkt alleen op ChatGPT — bij Perplexity en Gemini wordt live meegelezen'));
+  async function accessToken() {
+    try {
+      const res = await fetch('/api/auth/session', { credentials: 'include' });
+      if (!res.ok) return null;
+      const json = await res.json();
+      return (json && json.accessToken) || null;
+    } catch (err) {
+      // Zonder token proberen we het alsnog op de cookies alleen.
+      return null;
     }
-    var id = conversationId || conversationIdFromUrl();
-    if (!id) return Promise.reject(new Error('Geen conversatie geopend'));
-    return accessToken().then(function (token) {
-      var headers = { accept: '*/*' };
-      if (token) headers.authorization = 'Bearer ' + token;
-      return fetch('/backend-api/conversation/' + id, { credentials: 'include', headers: headers });
-    }).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    }).then(function (json) {
-      if (!json || !json.mapping) throw new Error('Onverwacht antwoord van ChatGPT');
-      var turns = self.FanoutParser.buildTurns({
-        provider: 'chatgpt',
-        source: 'history',
-        conversationId: json.conversation_id || id,
-        title: json.title || pageTitle(),
-        pageUrl: location.href,
-        mapping: json.mapping
-      });
-      queueTurns(turns);
-      flush();
-      return { turns: turns.length };
-    });
   }
 
-  chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
-    if (!msg || msg.type !== 'fanout:resync') return;
-    resync(msg.conversationId).then(function (res) {
-      sendResponse({ ok: true, turns: res.turns });
-    }).catch(function (err) {
-      sendResponse({ ok: false, error: String(err && err.message || err) });
+  async function resync(conversationId) {
+    if (PROVIDER !== 'chatgpt') {
+      throw new Error('Historie ophalen werkt alleen op ChatGPT — bij Perplexity en Gemini wordt live meegelezen');
+    }
+    const id = conversationId || conversationIdFromUrl();
+    if (!id) throw new Error('Geen conversatie geopend');
+
+    const token = await accessToken();
+    const headers = { accept: '*/*' };
+    if (token) headers.authorization = 'Bearer ' + token;
+
+    const res = await fetch('/backend-api/conversation/' + id, { credentials: 'include', headers: headers });
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' van ChatGPT');
+
+    const json = await res.json();
+    if (!json || !json.mapping) throw new Error('Onverwacht antwoord van ChatGPT');
+
+    const turns = self.FanoutParser.buildTurns({
+      provider: 'chatgpt',
+      source: 'history',
+      conversationId: json.conversation_id || id,
+      title: json.title || pageTitle(),
+      pageUrl: location.href,
+      mapping: json.mapping
     });
-    return true; // async
+    queueTurns(turns);
+    await flush();
+    return { turns: turns.length };
+  }
+
+  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (!msg || msg.type !== 'fanout:resync') return;
+    (async () => {
+      try {
+        const res = await resync(msg.conversationId);
+        sendResponse({ ok: true, turns: res.turns });
+      } catch (err) {
+        sendResponse({ ok: false, error: String((err && err.message) || err) });
+      }
+    })();
+    return true; // houdt het antwoordkanaal open
   });
 
   /* --------------------------------------------------------------------- */
