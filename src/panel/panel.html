@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="nl" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fanouts</title>
+  <link rel="stylesheet" href="../shared/ui.css">
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-main">
+      <span class="dot live" id="statusDot" title="Actief"></span>
+      <div class="topbar-title">
+        <strong>Fanouts</strong>
+        <span class="mute" id="scopeLabel">Alle conversaties</span>
+      </div>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="btnTheme" title="Wissel thema">☾</button>
+      <button class="icon-btn" id="btnPause" title="Opname pauzeren">⏸</button>
+      <button class="icon-btn" id="btnDashboard" title="Open dashboard">⧉</button>
+    </div>
+    <div class="topbar-stats" id="stats"></div>
+    <div class="topbar-tools">
+      <input type="search" id="search" placeholder="Filter queries, entiteiten, domeinen…">
+      <select id="scope">
+        <option value="active">Deze conversatie</option>
+        <option value="all">Alles</option>
+      </select>
+    </div>
+  </header>
+
+  <main id="list" class="list"></main>
+
+  <footer class="bottombar">
+    <button class="btn btn-sm" data-export="json">JSON</button>
+    <button class="btn btn-sm" data-export="csv-queries">CSV queries</button>
+    <button class="btn btn-sm" data-export="csv-entities">CSV entiteiten</button>
+    <button class="btn btn-sm" data-export="md">Markdown</button>
+    <div class="spacer"></div>
+    <button class="btn btn-sm" id="btnResync" title="Volledige ChatGPT-conversatie opnieuw ophalen">↻ Sync</button>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="../lib/parser.js"></script>
+  <script src="../lib/entities.js"></script>
+  <script src="../lib/analysis.js"></script>
+  <script src="../lib/exporter.js"></script>
+  <script src="../lib/store.js"></script>
+  <script src="panel.js"></script>
+</body>
+</html>

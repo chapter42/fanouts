@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="nl" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fanouts — dashboard</title>
+  <link rel="stylesheet" href="../shared/ui.css">
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <header class="head">
+    <div class="head-row">
+      <div class="brand">
+        <span class="logo">✳</span>
+        <div>
+          <strong>Fanouts</strong>
+          <span class="mute">query fan-out analyse — ChatGPT · Perplexity · Gemini</span>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <div class="head-actions">
+        <button class="btn" id="btnResync" title="Huidige ChatGPT-conversatie opnieuw ophalen (alleen ChatGPT)">↻ Sync conversatie</button>
+        <button class="btn" id="btnTheme" title="Wissel tussen licht en donker">☾ Donker</button>
+        <button class="btn" id="btnSettings">Instellingen</button>
+        <div class="dropdown">
+          <button class="btn btn-primary" id="btnExport">Exporteer ▾</button>
+          <div class="menu" id="exportMenu">
+            <button data-export="json">Volledige JSON</button>
+            <button data-export="md">Markdown-rapport</button>
+            <hr>
+            <button data-export="csv-queries">CSV — alle queries (per turn)</button>
+            <button data-export="csv-queries-agg">CSV — unieke queries</button>
+            <button data-export="csv-entities">CSV — entiteiten</button>
+            <button data-export="csv-domains">CSV — domeinen</button>
+            <button data-export="csv-sources">CSV — bronnen (per turn)</button>
+            <button data-export="csv-turns">CSV — turns</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="filters">
+      <input type="search" id="search" placeholder="Zoek in queries, entiteiten, domeinen, prompts…">
+      <select id="provider"><option value="">Alle assistenten</option></select>
+      <select id="conversation"><option value="">Alle conversaties</option></select>
+      <select id="period">
+        <option value="0">Alle tijd</option>
+        <option value="1">Vandaag</option>
+        <option value="7">Laatste 7 dagen</option>
+        <option value="30">Laatste 30 dagen</option>
+      </select>
+      <select id="qtype"><option value="">Alle querytypen</option></select>
+      <div class="spacer"></div>
+      <span class="mute" id="scopeInfo"></span>
+    </div>
+  </header>
+
+  <section class="tiles" id="tiles"></section>
+
+  <nav class="tabbar" id="tabbar">
+    <button class="tabbtn active" data-view="queries">Fan-out queries</button>
+    <button class="tabbtn" data-view="entities">Entiteiten</button>
+    <button class="tabbtn" data-view="domains">Bronnen &amp; domeinen</button>
+    <button class="tabbtn" data-view="turns">Turns</button>
+    <button class="tabbtn" data-view="types">Querytypen</button>
+    <button class="tabbtn" data-view="providers">Per assistent</button>
+  </nav>
+
+  <main id="view" class="view"></main>
+
+  <dialog id="settingsDlg" class="dlg">
+    <form method="dialog">
+      <h2>Instellingen</h2>
+
+      <label class="field">
+        <span>Mijn domeinen</span>
+        <textarea id="myDomains" rows="4" placeholder="chapter42.com&#10;klantdomein.nl"></textarea>
+        <small>Eén per regel. Deze worden gemarkeerd in bronnen en share-of-voice, zodat je meteen ziet of je geciteerd wordt.</small>
+      </label>
+
+      <label class="field">
+        <span>Maximaal aantal bewaarde turns</span>
+        <input type="number" id="maxTurns" min="50" max="10000" step="50">
+        <small>Oudste turns worden automatisch opgeruimd zodra deze grens wordt overschreden.</small>
+      </label>
+
+      <label class="field checkbox">
+        <input type="checkbox" id="capturePaused">
+        <span>Opname pauzeren</span>
+      </label>
+
+      <p class="storage mute" id="storageInfo"></p>
+
+      <div class="dlg-actions">
+        <button type="button" class="btn btn-danger" id="btnClear">Alles wissen</button>
+        <div class="spacer"></div>
+        <button class="btn" value="cancel">Annuleren</button>
+        <button type="button" class="btn btn-primary" id="btnSaveSettings">Opslaan</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="../lib/parser.js"></script>
+  <script src="../lib/entities.js"></script>
+  <script src="../lib/analysis.js"></script>
+  <script src="../lib/exporter.js"></script>
+  <script src="../lib/store.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>

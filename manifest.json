@@ -1,0 +1,74 @@
+{
+  "manifest_version": 3,
+  "name": "Fanouts — AI query fan-out monitor",
+  "version": "0.3.0",
+  "description": "Legt de verborgen zoekopdrachten (query fan-out), bronnen en entiteiten achter elk antwoord van ChatGPT, Perplexity en Gemini vast en maakt ze analyseerbaar en exporteerbaar.",
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "sidePanel",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://www.perplexity.ai/*",
+    "https://perplexity.ai/*",
+    "https://gemini.google.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js"
+  },
+  "action": {
+    "default_title": "Fanouts — open paneel"
+  },
+  "side_panel": {
+    "default_path": "src/panel/panel.html"
+  },
+  "options_page": "src/dashboard/dashboard.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://www.perplexity.ai/*",
+        "https://perplexity.ai/*",
+        "https://gemini.google.com/*"
+      ],
+      "js": [
+        "src/inject/util.js",
+        "src/inject/providers/chatgpt.js",
+        "src/inject/providers/perplexity.js",
+        "src/inject/providers/gemini.js",
+        "src/inject/interceptor.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://www.perplexity.ai/*",
+        "https://perplexity.ai/*",
+        "https://gemini.google.com/*"
+      ],
+      "js": [
+        "src/lib/parser.js",
+        "src/lib/entities.js",
+        "src/lib/analysis.js",
+        "src/content/content.js"
+      ],
+      "run_at": "document_start",
+      "world": "ISOLATED",
+      "all_frames": false
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

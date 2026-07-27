@@ -1,0 +1,241 @@
+/* Fanouts — dashboard. */
+
+body { min-height: 100vh; }
+
+.head {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: linear-gradient(var(--bg-raised), var(--bg-raised)) padding-box;
+  border-bottom: 1px solid var(--border);
+  padding: 14px 22px 12px;
+}
+
+.head-row { display: flex; align-items: center; gap: 14px; }
+
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand .logo {
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  color: var(--accent-text);
+  font-size: 15px;
+}
+.brand strong { display: block; font-size: 14px; letter-spacing: -0.01em; }
+.brand span { display: block; font-size: 11px; }
+
+.head-actions { display: flex; gap: 7px; align-items: center; }
+
+.dropdown { position: relative; }
+.menu {
+  position: absolute;
+  right: 0; top: calc(100% + 6px);
+  min-width: 250px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px;
+  box-shadow: var(--shadow-lg);
+  display: none;
+  z-index: 40;
+}
+.menu.open { display: block; }
+.menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.menu button:hover { background: var(--panel-hover); color: var(--text); }
+.menu hr { border: none; border-top: 1px solid var(--border); margin: 5px 2px; }
+
+.filters { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+.filters input[type="search"] { flex: 1; min-width: 240px; }
+.filters select { max-width: 260px; }
+
+/* ------------------------------------------------------------- tegels */
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 9px;
+  padding: 16px 22px 4px;
+}
+
+.tile {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 11px 13px;
+}
+.tile .v { font-size: 22px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.15; }
+.tile .k { font-size: 10.5px; color: var(--text-mute); margin-top: 3px; text-transform: uppercase; letter-spacing: .05em; }
+.tile.accent .v { color: var(--accent-text); }
+.tile.cyan   .v { color: var(--cyan); }
+.tile.pink   .v { color: var(--pink); }
+.tile.green  .v { color: var(--green); }
+
+/* -------------------------------------------------------------- tabbar */
+
+.tabbar {
+  display: flex;
+  gap: 3px;
+  padding: 14px 22px 0;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+}
+.tabbtn {
+  padding: 8px 13px 9px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-mute);
+  border-bottom: 2px solid transparent;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.tabbtn:hover { color: var(--text-dim); background: var(--overlay-1); }
+.tabbtn.active { color: var(--text); border-bottom-color: var(--accent); }
+
+.view { padding: 16px 22px 60px; }
+
+/* -------------------------------------------------------------- tabel */
+
+.table-wrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow-x: auto;
+  background: var(--panel);
+}
+
+table { border-collapse: collapse; width: 100%; font-size: 12px; }
+
+thead th {
+  /* .table-wrap is door overflow-x:auto zelf de scroll-container, dus de
+     sticky-offset is relatief aan die wrapper — niet aan de viewport. Een
+     waarde > 0 duwt de kop over de eerste rij heen. */
+  position: sticky;
+  top: 0;
+  background: var(--bg-raised);
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-mute);
+  padding: 8px 11px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+thead th:hover { color: var(--text-dim); }
+thead th.sorted { color: var(--text); }
+thead th .arrow { font-size: 8px; margin-left: 3px; opacity: .8; }
+
+tbody td { padding: 8px 11px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover { background: var(--overlay-1); }
+
+td.num, th.num { text-align: right; font-family: var(--mono); font-size: 11.5px; white-space: nowrap; }
+td.q { font-family: var(--mono); font-size: 11.5px; color: var(--code-text); word-break: break-word; min-width: 260px; }
+td.wide { max-width: 420px; }
+td .sub { color: var(--text-mute); font-size: 10.5px; margin-top: 3px; line-height: 1.5; }
+
+.bar { display: flex; align-items: center; gap: 8px; }
+.bar .track { display: block; width: 90px; height: 6px; background: var(--track); border-radius: 3px; overflow: hidden; flex: none; }
+.bar .fill { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.bar .fill.mine { background: var(--green); }
+
+.rowlink { color: var(--text); }
+.mine-row { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* ------------------------------------------------------------ turnkaart */
+
+.turncards { display: flex; flex-direction: column; gap: 10px; }
+.turncard {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 13px 15px;
+}
+.turncard h3 { margin: 0 0 4px; font-size: 13.5px; font-weight: 550; line-height: 1.4; word-break: break-word; }
+.turncard .meta { font-size: 11px; color: var(--text-mute); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.turncard .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 11px; }
+@media (max-width: 900px) { .turncard .cols { grid-template-columns: 1fr; } }
+.turncard h4 {
+  margin: 0 0 6px; font-size: 10.5px; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--text-mute); font-weight: 600;
+}
+.qlist { margin: 0; padding-left: 17px; }
+.qlist li { font-family: var(--mono); font-size: 11.5px; color: var(--code-text); margin-bottom: 4px; word-break: break-word; }
+.qlist li span { font-family: var(--sans); font-size: 10px; color: var(--text-mute); margin-left: 5px; }
+.slist { list-style: none; margin: 0; padding: 0; }
+.slist li { font-size: 11.5px; margin-bottom: 4px; word-break: break-word; }
+.slist li .d { font-family: var(--mono); font-size: 10px; color: var(--text-mute); }
+
+/* ------------------------------------------------------------- dialoog */
+
+.dlg {
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text);
+  border-radius: var(--radius-lg);
+  padding: 0;
+  width: min(520px, 92vw);
+  box-shadow: var(--shadow-lg);
+}
+.dlg::backdrop { background: var(--backdrop); backdrop-filter: blur(2px); }
+.dlg form { padding: 20px 22px 18px; }
+.dlg h2 { margin: 0 0 16px; font-size: 15px; font-weight: 600; }
+
+.field { display: block; margin-bottom: 15px; }
+.field > span { display: block; font-size: 12px; font-weight: 500; margin-bottom: 5px; }
+.field input[type="number"], .field textarea { width: 100%; }
+.field textarea { resize: vertical; font-family: var(--mono); font-size: 11.5px; }
+.field small { display: block; color: var(--text-mute); font-size: 10.5px; margin-top: 5px; line-height: 1.5; }
+.field.checkbox { display: flex; align-items: center; gap: 8px; }
+.field.checkbox > span { margin: 0; }
+.field.checkbox input { width: auto; }
+
+.storage { font-size: 11px; margin: 0 0 14px; }
+.dlg-actions { display: flex; gap: 8px; align-items: center; }
+
+/* ------------------------------------------------------------- antwoord */
+
+.answer-box {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+}
+.answer-box summary {
+  padding: 7px 11px;
+  cursor: pointer;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--text-mute);
+  font-weight: 600;
+  user-select: none;
+}
+.answer-box summary:hover { color: var(--text-dim); }
+.answer-box[open] summary { border-bottom: 1px solid var(--border); }
+.answer-text {
+  padding: 11px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text-dim);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 420px;
+  overflow-y: auto;
+}
