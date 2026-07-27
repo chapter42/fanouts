@@ -19,8 +19,12 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
 
 ### Toegevoegd
 - `npm run screenshots` rendert de storescreenshots headless op exact 1280×800 uit
-  de echte UI, plus een zelfstandige privacypagina in `store-assets/privacy.html`
-  om op chapter42.com te publiceren.
+  de echte UI, plus een zelfstandige privacypagina in `store-assets/privacy.html`.
+
+### Gewijzigd
+- Het privacybeleid staat live op chapter42.com; die URL is nu overal vastgelegd.
+  De pagina noemt het contactadres ook als platte tekst, omdat e-mailverhulling het
+  anders vervangt door `[email protected]` voor wie zonder JavaScript leest.
 
 ## [0.3.4] — 2026-07-27
 
