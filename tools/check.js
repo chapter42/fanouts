@@ -263,7 +263,34 @@ ok(changelog.indexOf('## [' + manifest.version + ']') !== -1,
   'huidige versie staat in de CHANGELOG', manifest.version);
 
 /* ===================================================================== */
-section('7. Iconen');
+section('7. Chrome Web Store');
+
+// De storelistering kapt de korte beschrijving af op 132 tekens; manifest.json
+// is de bron daarvoor. Stond er eerst op 174 en dat viel pas op bij het
+// voorbereiden van de indiening.
+ok(manifest.description.length <= 132,
+  'manifest-beschrijving past binnen de storelimiet',
+  manifest.description.length + ' tekens (max 132)');
+ok(manifest.name.length <= 75, 'extensienaam past binnen de storelimiet',
+  manifest.name.length + ' tekens (max 75)');
+
+// Merknamen in de extensienaam zijn een bekende afwijzingsgrond; in de
+// beschrijving is nominatief gebruik wel toegestaan.
+const BRANDS = /\b(ChatGPT|OpenAI|Perplexity|Gemini|Google)\b/i;
+ok(!BRANDS.test(manifest.name), 'geen merknaam in de extensienaam', manifest.name);
+
+ok(exists('CHROMEWEBSTORE.md') && exists('PRIVACY.md'),
+  'storelistering en privacybeleid aanwezig');
+if (exists('CHROMEWEBSTORE.md')) {
+  const cws = read('CHROMEWEBSTORE.md');
+  ok(cws.indexOf(manifest.version) !== -1,
+    'CHROMEWEBSTORE.md noemt de huidige versie', manifest.version);
+  ok(cws.indexOf(manifest.description) !== -1,
+    'korte beschrijving in CHROMEWEBSTORE.md is gelijk aan die in het manifest');
+}
+
+/* ===================================================================== */
+section('8. Iconen');
 
 /*
  * De iconen zijn gegenereerd; ze horen overeen te komen met wat make-icons.js
