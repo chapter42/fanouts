@@ -35,22 +35,54 @@
     try { return String(input); } catch (e) { return ''; }
   }
 
-  function readRequestBody(args) {
+  async function readRequestBody(args) {
     var init = args[1];
-    if (init && typeof init.body === 'string') return Promise.resolve(init.body);
-    if (init && init.body instanceof URLSearchParams) return Promise.resolve(init.body.toString());
+    if (init && typeof init.body === 'string') return init.body;
+    if (init && init.body instanceof URLSearchParams) return init.body.toString();
     if (init && init.body instanceof Uint8Array) {
-      try { return Promise.resolve(new TextDecoder().decode(init.body)); } catch (e) { /* noop */ }
+      try { return new TextDecoder().decode(init.body); } catch (e) { /* noop */ }
     }
     if (args[0] && typeof args[0] === 'object' && typeof args[0].clone === 'function') {
-      try { return args[0].clone().text().catch(function () { return ''; }); } catch (e) { /* noop */ }
+      try { return await args[0].clone().text(); } catch (e) { /* noop */ }
     }
-    return Promise.resolve('');
+    return '';
   }
 
   /* --------------------------------------------------------------- fetch */
 
   var originalFetch = window.fetch;
+
+  /*
+   * Het meelezen gebeurt in losse async-helpers die we bewust NIET awaiten: de
+   * response gaat direct terug naar de pagina en de analyse loopt ernaast. Zo
+   * kan onze code de host-app niet vertragen, ook niet met één microtask.
+   */
+  async function tapStream(res, args, descriptor) {
+    if (!res || !res.ok || !res.body) return;
+    var clone = res.clone();
+    var ctx = {};
+    try {
+      ctx = provider.promptFromRequest(await readRequestBody(args)) || {};
+    } catch (e) {
+      ctx = {};
+    }
+    ctx.conversationId = ctx.conversationId || descriptor.conversationId || null;
+    emit('turn-start', {
+      provider: provider.id,
+      conversationId: ctx.conversationId,
+      prompt: ctx.prompt || '',
+      promptId: ctx.promptId || null,
+      promptTime: ctx.promptTime || Date.now(),
+      pageUrl: location.href
+    });
+    if (clone.body) provider.consumeStream(clone.body, ctx, emit);
+  }
+
+  async function tapJson(res, descriptor) {
+    if (!res || !res.ok || !provider.consumeJson) return;
+    var json = await res.clone().json();
+    provider.consumeJson(json, { conversationId: descriptor.conversationId || null }, emit);
+  }
 
   window.fetch = function () {
     var args = Array.prototype.slice.call(arguments);
@@ -59,45 +91,19 @@
 
     var descriptor;
     try { descriptor = provider.match(url, method); } catch (e) { descriptor = null; }
+
+    // Alles wat ons niet aangaat gaat ongewijzigd en zonder extra tick door.
     if (!descriptor) return originalFetch.apply(this, args);
 
-    if (descriptor.type === 'stream') {
-      var ctxPromise = readRequestBody(args).then(function (body) {
-        try { return provider.promptFromRequest(body) || {}; } catch (e) { return {}; }
+    var pending = originalFetch.apply(this, args);
+    pending.then(function (res) {
+      var tap = descriptor.type === 'stream' ? tapStream(res, args, descriptor) : tapJson(res, descriptor);
+      tap.catch(function (err) {
+        // Meelezen mag nooit de pagina raken; loggen en verder.
+        console.debug('[Fanouts] meelezen mislukt', err);
       });
-
-      return originalFetch.apply(this, args).then(function (res) {
-        try {
-          if (res && res.ok && res.body) {
-            var clone = res.clone();
-            ctxPromise.then(function (ctx) {
-              ctx.conversationId = ctx.conversationId || descriptor.conversationId || null;
-              emit('turn-start', {
-                provider: provider.id,
-                conversationId: ctx.conversationId,
-                prompt: ctx.prompt || '',
-                promptId: ctx.promptId || null,
-                promptTime: ctx.promptTime || Date.now(),
-                pageUrl: location.href
-              });
-              if (clone.body) provider.consumeStream(clone.body, ctx, emit);
-            });
-          }
-        } catch (e) { /* nooit de host-app breken */ }
-        return res;
-      });
-    }
-
-    return originalFetch.apply(this, args).then(function (res) {
-      try {
-        if (res && res.ok && provider.consumeJson) {
-          res.clone().json().then(function (json) {
-            provider.consumeJson(json, { conversationId: descriptor.conversationId || null }, emit);
-          }).catch(function () {});
-        }
-      } catch (e) { /* noop */ }
-      return res;
-    });
+    }, function () { /* de pagina handelt zijn eigen fout af */ });
+    return pending;
   };
 
   /* ----------------------------------------------------------------- XHR */

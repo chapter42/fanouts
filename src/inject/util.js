@@ -111,21 +111,22 @@
       if (force && buffer.trim()) { handleBlock(buffer); buffer = ''; }
     }
 
-    function pump() {
-      return reader.read().then(function (r) {
-        if (r.done) {
-          buffer += decoder.decode();
-          flush(true);
-          onEnd();
-          return;
+    return (async function pump() {
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          flush(false);
         }
-        buffer += decoder.decode(r.value, { stream: true });
-        flush(false);
-        return pump();
-      });
-    }
-
-    return pump().catch(function () { onEnd(); });
+        buffer += decoder.decode();
+        flush(true);
+      } catch (err) {
+        // Stream afgebroken (navigatie, netwerk). Wat we hebben is nog bruikbaar.
+        console.debug('[Fanouts] SSE-stream afgebroken', err);
+      }
+      onEnd();
+    })();
   }
 
   /* Splitst een complete SSE-body in losse data-payloads. */
@@ -147,15 +148,20 @@
     var decoder = new TextDecoder('utf-8');
     var text = '';
 
-    function pump() {
-      return reader.read().then(function (r) {
-        if (r.done) { text += decoder.decode(); onEnd(text); return; }
-        text += decoder.decode(r.value, { stream: true });
-        if (onChunk) onChunk(text);
-        return pump();
-      });
-    }
-    return pump().catch(function () { onEnd(text); });
+    return (async function pump() {
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          text += decoder.decode(value, { stream: true });
+          if (onChunk) onChunk(text);
+        }
+        text += decoder.decode();
+      } catch (err) {
+        console.debug('[Fanouts] stream afgebroken', err);
+      }
+      onEnd(text);
+    })();
   }
 
   /* Verzamelaars die duplicaten meteen wegnemen. */

@@ -38,7 +38,7 @@
             resolve();
           });
         },
-        getBytesInUse: function (keys, cb) { cb(JSON.stringify(DATA).length); }
+        getBytesInUse: function () { return Promise.resolve(JSON.stringify(DATA).length); }
       },
       onChanged: { addListener: function (fn) { listeners.push(fn); } }
     },

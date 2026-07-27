@@ -48,6 +48,13 @@
     return (n / 1048576).toFixed(1) + ' MB';
   }
 
+  function errText(err) { return String((err && err.message) || err || 'onbekende fout'); }
+
+  // Voor fire-and-forget acties: laat de gebruiker het weten als het misgaat.
+  function run(promise, label) {
+    promise.catch(function (err) { toast(label + ': ' + errText(err), true); });
+  }
+
   var toastTimer;
   function toast(msg, isErr) {
     el.toast.textContent = msg;
@@ -431,7 +438,13 @@
       var act = tb.getAttribute('data-act');
       var turn = state.all.filter(function (t) { return t.id === id; })[0];
       if (!turn) return;
-      if (act === 'del') { self.FanoutStore.deleteTurn(id).then(load); return; }
+      if (act === 'del') {
+        run((async function () {
+          await self.FanoutStore.deleteTurn(id);
+          await load();
+        })(), 'Verwijderen mislukt');
+        return;
+      }
       if (act === 'copy') {
         self.FanoutExport.copyToClipboard((turn.fanout || []).filter(function (q) { return q.kind === 'search'; })
           .map(function (q) { return q.q; }).join('\n'));
@@ -487,62 +500,84 @@
     $('#btnTheme').textContent = dark ? '☀ Licht' : '☾ Donker';
   }
 
-  $('#btnTheme').addEventListener('click', function () {
+  $('#btnTheme').addEventListener('click', async function () {
     var next = state.settings.theme === 'dark' ? 'light' : 'dark';
-    self.FanoutStore.applyTheme(next);
-    self.FanoutStore.setSettings({ theme: next }).then(function (s) {
-      state.settings = s;
-      syncThemeButton();
-    });
+    self.FanoutStore.applyTheme(next);   // meteen zichtbaar, ook als opslaan faalt
+    try {
+      state.settings = await self.FanoutStore.setSettings({ theme: next });
+    } catch (err) {
+      state.settings.theme = next;
+      toast('Thema onthouden mislukt — geldt alleen voor nu', true);
+    }
+    syncThemeButton();
   });
 
   $('#btnSettings').addEventListener('click', function () {
     $('#myDomains').value = (state.settings.myDomains || []).join('\n');
     $('#maxTurns').value = state.settings.maxTurns || 800;
     $('#capturePaused').checked = !!state.settings.capturePaused;
-    self.FanoutStore.usage().then(function (b) {
-      $('#storageInfo').textContent = b === null ? '' :
-        'Opslag in gebruik: ' + bytes(b) + ' · ' + state.all.length + ' turns bewaard.';
-    });
+    (async function () {
+      try {
+        var b = await self.FanoutStore.usage();
+        $('#storageInfo').textContent = b === null ? '' :
+          'Opslag in gebruik: ' + bytes(b) + ' · ' + state.all.length + ' turns bewaard.';
+      } catch (err) {
+        $('#storageInfo').textContent = 'Opslaggebruik onbekend.';
+      }
+    })();
     el.dlg.showModal();
   });
 
-  $('#btnSaveSettings').addEventListener('click', function () {
+  $('#btnSaveSettings').addEventListener('click', async function () {
+    var btn = this;
     var domains = $('#myDomains').value.split(/[\n,;]+/).map(function (s) { return s.trim(); }).filter(Boolean);
-    self.FanoutStore.setSettings({
-      myDomains: domains,
-      maxTurns: Math.max(50, Number($('#maxTurns').value) || 800),
-      capturePaused: $('#capturePaused').checked
-    }).then(function (s) {
-      state.settings = s;
-      return self.FanoutStore.reanalyseAll();
-    }).then(function () {
+    btn.disabled = true;
+    try {
+      state.settings = await self.FanoutStore.setSettings({
+        myDomains: domains,
+        maxTurns: Math.max(50, Number($('#maxTurns').value) || 800),
+        capturePaused: $('#capturePaused').checked
+      });
+      await self.FanoutStore.reanalyseAll();
       el.dlg.close();
       toast('Instellingen opgeslagen');
-      load();
-    });
+      await load();
+    } catch (err) {
+      toast('Opslaan mislukt: ' + errText(err), true);
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   $('#btnClear').addEventListener('click', function () {
     if (!confirm('Alle opgenomen turns definitief wissen? Dit kan niet ongedaan worden gemaakt.')) return;
-    self.FanoutStore.clearAll().then(function () {
-      el.dlg.close();
-      toast('Alles gewist');
-      load();
-    });
+    (async function () {
+      try {
+        await self.FanoutStore.clearAll();
+        el.dlg.close();
+        toast('Alles gewist');
+        await load();
+      } catch (err) {
+        toast('Wissen mislukt: ' + errText(err), true);
+      }
+    })();
   });
 
   /* ----------------------------------------------------------------- load */
 
-  function load() {
-    return Promise.all([self.FanoutStore.getTurns(), self.FanoutStore.getSettings()]).then(function (res) {
+  async function load() {
+    try {
+      var res = await Promise.all([self.FanoutStore.getTurns(), self.FanoutStore.getSettings()]);
       state.all = res[0];
       state.settings = res[1];
       self.FanoutStore.applyTheme(state.settings.theme);
       syncThemeButton();
       renderFilterOptions();
       render();
-    });
+    } catch (err) {
+      el.view.innerHTML = '<div class="empty"><strong>Opslag onbereikbaar</strong>' +
+        esc(errText(err)) + '<br><br>Herlaad de extensie via chrome://extensions.</div>';
+    }
   }
 
   var reloadTimer;
