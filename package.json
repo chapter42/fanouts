@@ -9,7 +9,8 @@
     "icons": "node tools/make-icons.js",
     "fixture": "node tools/make-fixture.js",
     "preview": "node tools/make-fixture.js && node tools/make-previews.js",
-    "package": "node tools/package.js"
+    "package": "node tools/package.js",
+    "screenshots": "node tools/make-fixture.js && node tools/make-previews.js && node tools/make-screenshots.js"
   },
   "repository": {
     "type": "git",

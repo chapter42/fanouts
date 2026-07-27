@@ -104,11 +104,12 @@ Wil je internationaal, lokaliseer dan eerst de interface.
 | Asset | Afmeting | Status | Bestand |
 |---|---|---|---|
 | Store Icon | 128×128 PNG | ✅ Ready | `icons/icon128.png` |
-| Screenshot 1 | 1280×800 | ⬜ Not created | zijpaneel live naast een ChatGPT-gesprek |
-| Screenshot 2 | 1280×800 | ⬜ Not created | dashboard, tab *Fan-out queries* |
-| Screenshot 3 | 1280×800 | ⬜ Not created | dashboard, tab *Entiteiten* |
-| Screenshot 4 | 1280×800 | ⬜ Not created | dashboard, tab *Per assistent* |
-| Small Promo Tile | 440×280 | ⬜ Not created | |
+| Screenshot 1 | 1280×800 | ✅ Ready | `store-assets/01-zijpaneel.png` |
+| Screenshot 2 | 1280×800 | ✅ Ready | `store-assets/02-fanout-queries.png` |
+| Screenshot 3 | 1280×800 | ✅ Ready | `store-assets/03-entiteiten.png` |
+| Screenshot 4 | 1280×800 | ✅ Ready | `store-assets/04-per-assistent.png` |
+| Screenshot 5 | 1280×800 | ✅ Ready | `store-assets/05-bronnen.png` |
+| Small Promo Tile | 440×280 | ⬜ Not created | optioneel, voor featured placement |
 | Marquee Promo Tile | 1400×560 | ⬜ Not created | optioneel |
 
 ### Screenshot Notes
@@ -123,11 +124,26 @@ Eén screenshot is verplicht, vier is beter. Wat ze moeten laten zien:
 4. **Per assistent** — de tabel met domeinen die door meerdere assistenten worden
    geciteerd.
 
-**Gebruik echte gesprekken, geen fixture-data.** `npm run preview` levert de UI op
-1280×800 maar met verzonnen inhoud. "No misleading screenshots" betekent dat een
-screenshot moet tonen wat de gebruiker krijgt; verzonnen data die er echt uitziet is
-een risico. Neem liever vier eigen vragen op en maak daar de screenshots van. Zet er
-geen klantnamen of interne informatie in — een screenshot is openbaar.
+### Hoe ze gemaakt zijn
+
+```bash
+npm run screenshots
+```
+
+Rendert de **echte** UI headless op exact 1280×800 — dezelfde HTML, CSS en JavaScript
+die de gebruiker draait, met de demo-fixture als inhoud. Er wordt niets nagebouwd of
+geretoucheerd.
+
+**De inhoud is verzonnen.** De vragen over CRM-systemen, laadpalen en AI-zichtbaarheid
+komen uit `tools/make-fixture.js`. Wat je ziet is echte uitvoer van echte code op
+synthetische invoer — geen mockup van functies die niet bestaan, en dat is waar
+"no misleading screenshots" over gaat. Toch: heb je vier eigen gesprekken die je
+openbaar durft te tonen, dan zijn die overtuigender. Let dan op klantnamen en interne
+informatie, want een screenshot is openbaar.
+
+Op de paneelscreenshot staat links een tekstannotatie op een neutrale achtergrond.
+Bewust geen nagebootste chatinterface: dat zou suggereren dat de extensie iets toont
+wat ze niet toont.
 
 ---
 
@@ -198,15 +214,20 @@ bijkomt.
 
 ## Privacy Policy
 
-**Privacy Policy URL**
-`https://github.com/chapter42/fanouts/blob/main/PRIVACY.md`
+**Privacy Policy URL** — ⬜ nog te publiceren
 
-De tekst staat in [PRIVACY.md](PRIVACY.md) en is versiebeheerd naast de code, zodat
-hij niet uit de pas kan lopen met wat de extensie doet.
+Voorstel: `https://chapter42.com/fanouts/privacy`
+
+De pagina staat klaar als [`store-assets/privacy.html`](store-assets/privacy.html):
+één zelfstandig bestand zonder externe fonts, stylesheets of scripts, dus het laadt
+niets van buiten — passend bij wat het belooft. Upload het en pas de URL hierboven aan
+als je een ander pad kiest.
+
+De brontekst staat óók in [PRIVACY.md](PRIVACY.md), versiebeheerd naast de code zodat
+hij niet uit de pas kan lopen met wat de extensie doet. **Wijzig je één, wijzig dan de
+ander** — die twee moeten hetzelfde zeggen.
 
 Een privacybeleid is hier verplicht: de extensie verwerkt persoonlijke communicatie.
-Overweeg GitHub Pages als je een net domein wilt — een blob-URL wordt geaccepteerd
-maar oogt minder verzorgd.
 
 **Controleer de link voordat je indient.** Een 404 is een automatische afwijzing.
 
@@ -240,7 +261,7 @@ takedown-meldingen naartoe. Houd het in de gaten.
 
 | Versie | Datum | Wijzigingen | Status |
 |---|---|---|---|
-| 0.3.4 | 2026-07-27 | Eerste voorbereiding voor de store: listing, privacybeleid, verpakkingsscript. Manifest-beschrijving ingekort tot binnen de limiet van 132 tekens. | Draft |
+| 0.3.4 | 2026-07-27 | Eerste voorbereiding voor de store: listing, privacybeleid, verpakkingsscript, vijf screenshots. Manifest-beschrijving ingekort tot binnen de limiet van 132 tekens. | Draft |
 
 ---
 
@@ -259,8 +280,8 @@ takedown-meldingen naartoe. Houd het in de gaten.
 - [x] Geen obfuscatie
 - [x] Store-icoon 128×128 aanwezig
 - [x] Schone ZIP via `npm run package` (alleen `manifest.json`, `icons/`, `src/`, `LICENSE`)
-- [ ] **Minstens één screenshot op 1280×800**
-- [ ] **Privacybeleid live op een publieke URL en gecontroleerd**
+- [x] Vijf screenshots op 1280×800 (`npm run screenshots`)
+- [ ] **Privacybeleid live op chapter42.com en de URL zelf gecontroleerd**
 - [ ] Data-disclosure-formulier ingevuld conform de tabel hierboven
 - [ ] Extensie uitgepakt getest op alle drie de assistenten, console schoon
 

@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacybeleid — Fanouts | Chapter42</title>
+<meta name="description" content="Privacybeleid van de Fanouts-browserextensie. Alle gegevens blijven op je eigen computer.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://chapter42.com/fanouts/privacy">
+<style>
+  /* Zelfstandige pagina: geen externe fonts, stylesheets of scripts, zodat hij
+     overal werkt en niets naar buiten laadt — passend bij wat hij belooft. */
+  :root {
+    --bg: #f6f7f9; --panel: #fff; --border: #e2e5ec;
+    --text: #191c24; --dim: #566070; --mute: #858c9c; --accent: #5b4ee0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 56px 24px 96px; }
+  header { border-bottom: 1px solid var(--border); padding-bottom: 24px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--accent); }
+  h1 { font-size: 34px; line-height: 1.15; letter-spacing: -0.025em; margin: 10px 0 8px; }
+  .meta { color: var(--mute); font-size: 14px; margin: 0; }
+  h2 { font-size: 20px; letter-spacing: -0.01em; margin: 40px 0 12px; }
+  p, li { color: var(--dim); }
+  li { margin-bottom: 6px; }
+  strong { color: var(--text); }
+  a { color: var(--accent); }
+  .lead {
+    background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+    border-radius: 8px; padding: 18px 20px; margin: 0 0 8px; color: var(--text);
+  }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 15px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--mute); font-weight: 600; }
+  td { color: var(--dim); }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 14px;
+         background: #eceef3; padding: 1px 5px; border-radius: 4px; color: var(--text); }
+  footer { margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--border);
+           color: var(--mute); font-size: 14px; }
+  @media (max-width: 600px) { h1 { font-size: 27px; } .wrap { padding: 36px 18px 64px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">Chapter42 · Browserextensie</span>
+  <h1>Privacybeleid — Fanouts</h1>
+  <p class="meta">Laatst bijgewerkt: 27 juli 2026 · geldt vanaf versie 0.3.4</p>
+</header>
+
+<p class="lead"><strong>Alles blijft op je eigen computer.</strong> Er is geen server,
+geen account, geen analytics en geen telemetrie. Fanouts leest mee met je gesprekken op
+ChatGPT, Perplexity en Gemini; die informatie wordt lokaal opgeslagen en nooit verstuurd.</p>
+
+<h2>Welke gegevens worden verwerkt</h2>
+
+<p>Bij een vraag waarvoor de assistent het web raadpleegt, legt Fanouts vast:</p>
+
+<table>
+  <tr><th>Gegeven</th><th>Waarvoor</th></tr>
+  <tr><td>Je vraag</td><td>om het overzicht per gesprek te tonen</td></tr>
+  <tr><td>De zoekopdrachten van de assistent</td><td>de kernfunctie van de extensie</td></tr>
+  <tr><td>Geraadpleegde en geciteerde bronnen (URL, titel, fragment)</td><td>om te tonen waar het antwoord vandaan komt</td></tr>
+  <tr><td>De antwoordtekst</td><td>om te kunnen doorzoeken en analyseren wat er is gezegd</td></tr>
+  <tr><td>Titel en id van het gesprek, tijdstip en modelnaam</td><td>om het overzicht te ordenen</td></tr>
+  <tr><td>Je instellingen (eigen domeinen, thema, bewaarlimiet)</td><td>om je voorkeuren te onthouden</td></tr>
+</table>
+
+<p>Bevat je vraag persoonlijke gegevens, dan komen die in het overzicht terecht, net als
+in het gesprek zelf. Fanouts filtert of herkent dat niet.</p>
+
+<p><strong>Niet verwerkt:</strong> je browsergeschiedenis, andere tabbladen, cookies,
+opgeslagen wachtwoorden en de inhoud van andere websites. De extensie is uitsluitend
+actief op chatgpt.com, chat.openai.com, perplexity.ai en gemini.google.com.</p>
+
+<h2>Waar de gegevens staan</h2>
+
+<p>In <code>chrome.storage.local</code>: opslag op je eigen schijf, binnen je
+Chrome-profiel. Uitdrukkelijk <strong>niet</strong> in <code>chrome.storage.sync</code> —
+dat zou de gegevens naar je Google-account en je andere apparaten kopiëren.</p>
+
+<p>Deze opslag is <strong>niet versleuteld</strong>. Wie toegang heeft tot je
+Chrome-profiel kan de bewaarde gesprekken lezen. Dat geldt voor elke extensie die lokale
+opslag gebruikt, maar het is hier extra relevant omdat het om gespreksinhoud gaat.</p>
+
+<h2>Wat er de deur uit gaat</h2>
+
+<p>Vrijwel niets. Het meelezen doet zelf <strong>geen enkele</strong> netwerkaanroep: er
+wordt alleen een kopie gelezen van antwoorden die je browser toch al ontving.</p>
+
+<p>Er is één uitzondering, en die komt alleen in actie als je er zelf op klikt. De knop
+<strong>Historie ophalen</strong> doet twee aanroepen naar ChatGPT:</p>
+
+<table>
+  <tr><th>Aanroep</th><th>Waarvoor</th></tr>
+  <tr><td><code>GET /api/auth/session</code></td><td>je bestaande sessietoken ophalen</td></tr>
+  <tr><td><code>GET /backend-api/conversation/&lt;id&gt;</code></td><td>jouw eigen gesprek ophalen</td></tr>
+</table>
+
+<p>Beide gaan naar ChatGPT zelf, met de sessie die je toch al hebt. Het token wordt alleen
+in die ene aanroep gebruikt en nergens opgeslagen of gelogd. Dit is een <em>download</em>
+naar je eigen schijf — er wordt niets van je verstuurd.</p>
+
+<p>Er zijn geen andere bestemmingen. De extensie heeft alleen toegangsrechten voor de
+vijf adressen hierboven en kan technisch nergens anders heen.</p>
+
+<h2>Delen met derden</h2>
+
+<p>Nooit. Je gegevens worden niet verkocht, verhuurd, gedeeld of voor advertenties
+gebruikt. Er zijn geen externe diensten, bibliotheken of trackers in de extensie.</p>
+
+<h2>Bewaren en verwijderen</h2>
+
+<p>Gegevens blijven staan tot je ze verwijdert. Standaard worden de laatste 800 gesprekken
+bewaard; daarboven verdwijnen de oudste automatisch. Die grens kun je zelf aanpassen.</p>
+
+<ul>
+  <li><strong>Pauzeren</strong> — met de knop in het zijpaneel stopt het vastleggen direct</li>
+  <li><strong>Eén gesprek wissen</strong> — via <em>Verwijderen</em> op de betreffende kaart</li>
+  <li><strong>Alles wissen</strong> — via Instellingen → <em>Alles wissen</em></li>
+  <li><strong>Exporteren</strong> — naar JSON, CSV of Markdown, naar je eigen downloadmap</li>
+  <li><strong>Verwijderen van de extensie</strong> — Chrome wist dan alle bijbehorende opslag</li>
+</ul>
+
+<h2>Exports</h2>
+
+<p>Een export bevat je vragen, de volledige antwoorden en de geciteerde bronnen. Die
+bestanden staan daarna op je eigen computer en vallen buiten dit beleid. Behandel ze als
+vertrouwelijk, zeker als je klantvragen of interne informatie in je prompts zet.</p>
+
+<h2>Kinderen</h2>
+
+<p>Fanouts is bedoeld voor professioneel gebruik en richt zich niet op kinderen onder de
+13. Er worden bewust geen leeftijdsgegevens verzameld.</p>
+
+<h2>Wijzigingen</h2>
+
+<p>Wordt dit beleid aangepast, dan verandert de datum bovenaan. Omdat de brontekst naast
+de code in een openbare repository staat, is elke wijziging publiek terug te zien in de
+git-historie.</p>
+
+<h2>Verifiëren</h2>
+
+<p>Je hoeft dit niet op mijn woord te geloven. De volledige broncode is openbaar op
+<a href="https://github.com/chapter42/fanouts">github.com/chapter42/fanouts</a>, en er
+draait een geautomatiseerde controle die de build laat falen zodra er een netwerkaanroep
+bijkomt, <code>chrome.storage.sync</code> wordt gebruikt of er een toegangsrecht wordt
+toegevoegd.</p>
+
+<h2>Contact</h2>
+
+<p>Vragen over privacy, of iets gevonden dat niet klopt:
+<a href="mailto:roy@chapter42.com">roy@chapter42.com</a></p>
+
+<p>Beveiligingsproblemen graag níét via een openbaar issue melden, maar rechtstreeks per
+e-mail.</p>
+
+<footer>
+  Chapter42 · <a href="https://chapter42.com">chapter42.com</a> ·
+  <a href="https://github.com/chapter42/fanouts">Broncode</a>
+</footer>
+
+</div>
+</body>
+</html>
