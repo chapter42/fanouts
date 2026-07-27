@@ -173,6 +173,16 @@ const EXPECTED_PERMS = ['storage', 'unlimitedStorage', 'sidePanel', 'tabs'];
 const extraPerms = manifest.permissions.filter(function (p) { return EXPECTED_PERMS.indexOf(p) === -1; });
 ok(extraPerms.length === 0, 'geen onverwachte permissies', extraPerms.join(', '));
 
+// 4e. Het zijpaneel is alleen via de actieknop te openen. Valt die ene route
+// weg, dan is de extensie onbruikbaar — dus moet er een tweede zijn.
+const sw = read(manifest.background.service_worker);
+ok(/setPanelBehavior/.test(sw) && /action\.onClicked/.test(sw),
+  'zijpaneel heeft twee openingsroutes (setPanelBehavior + action.onClicked)');
+ok(/openPanelOnActionClick/.test(sw) && !/openPanelOnActionIconClick/.test(sw),
+  'setPanelBehavior gebruikt openPanelOnActionClick, niet de Icon-variant');
+ok(!manifest.action || !manifest.action.default_popup,
+  'geen default_popup naast setPanelBehavior — die zou onClicked blokkeren');
+
 /* ===================================================================== */
 section('5. Thema-discipline');
 

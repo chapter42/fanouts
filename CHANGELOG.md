@@ -15,6 +15,21 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
   themavariabelen, versies gelijk in manifest en package, en de iconen die
   pixel-voor-pixel overeenkomen met hun generator.
 
+## [0.3.2] — 2026-07-27
+
+### Opgelost
+- **Het zijpaneel had één stil faalpunt.** `setPanelBehavior()` was de enige
+  route naar het paneel en de fout werd door een lege `catch` opgeslokt. Faalde
+  die aanroep, dan deed klikken op het icoon niets en was er geen alternatief.
+  Er is nu een `action.onClicked`-vangnet dat `sidePanel.open()` aanroept, en de
+  fout wordt gelogd. Viel niet eerder op omdat `setPanelBehavior` in de praktijk
+  vrijwel altijd slaagt — het was een fout die pas zichtbaar wordt als het misgaat.
+- Fouten bij het openen van het dashboard en bij het schrijven van de
+  standaardinstellingen werden genegeerd; die worden nu gemeld.
+- Draait het content script niet (tabblad niet ververst na het herladen van de
+  extensie), dan geeft *Historie ophalen* nu een bruikbare melding in plaats van
+  "Geen antwoord".
+
 ## [0.3.1] — 2026-07-27
 
 ### Gewijzigd
@@ -96,6 +111,7 @@ Eerste versie. ChatGPT-only.
 - Instelling *mijn domeinen* voor share-of-voice-markering.
 - Testsuite die de echte interceptor in een nagebootste browser draait.
 
+[0.3.2]: https://github.com/chapter42/fanouts/releases/tag/v0.3.2
 [0.3.1]: https://github.com/chapter42/fanouts/releases/tag/v0.3.1
 [0.3.0]: https://github.com/chapter42/fanouts/releases/tag/v0.3.0
 [0.2.0]: https://github.com/chapter42/fanouts/releases/tag/v0.2.0
