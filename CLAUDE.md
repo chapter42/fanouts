@@ -280,6 +280,11 @@ wordt geweigerd met `GH006: Protected branch update failed`.
 | Lineaire historie verplicht | aan (dus squash of rebase mergen, geen merge-commit) |
 | Openstaande discussies afronden | aan |
 | Verplichte status checks | `Node 20` / `Node 22` / `Node 24` |
+| Branch moet up-to-date zijn met main | aan |
+
+Merge-commits staan uit op repo-niveau; alleen squash en rebase blijven over.
+Dat voorkomt dat GitHub een knop aanbiedt die `required_linear_history`
+vervolgens weigert.
 
 Zit je vast en moet je er echt omheen, dan zet je hem tijdelijk uit en meteen
 weer aan:
