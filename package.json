@@ -4,7 +4,8 @@
   "private": true,
   "description": "Chrome-extensie die ChatGPT's query fan-out, bronnen en entiteiten vastlegt en exporteerbaar maakt.",
   "scripts": {
-    "test": "node tools/test-parser.js",
+    "check": "node tools/check.js",
+    "test": "node tools/check.js && node tools/test-parser.js",
     "icons": "node tools/make-icons.js",
     "fixture": "node tools/make-fixture.js",
     "preview": "node tools/make-fixture.js && node tools/make-previews.js"

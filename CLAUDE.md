@@ -11,10 +11,17 @@ afvangt, lokaal analyseert en exporteerbaar maakt. Vanilla JS, **geen build-stap
 geen dependencies**. `npm` wordt alleen gebruikt als scriptrunner.
 
 ```bash
-npm test        # 108 checks — draai dit na elke wijziging aan lib/ of inject/
+npm test        # projectregels + 108 gedragschecks — draai dit voor elke commit
+npm run check   # alleen de statische projectregels (snel)
 npm run preview # fixture + dev/*-preview.html om de UI te bekijken
 npm run icons   # iconen opnieuw genereren
 ```
+
+`tools/check.js` dwingt de harde regels hieronder machinaal af: geen
+dependencies, geen extra uitgaande aanroepen, geen `storage.sync`, geen extra
+permissies, geen hardgecodeerde kleuren, versies gelijk. Voeg je bewust iets toe
+dat een regel raakt, dan pas je de allowlist in dat bestand aan — die wijziging
+hoort zichtbaar in de PR-diff te staan.
 
 Testen in de echte browser: `chrome://extensions` → Ontwikkelaarsmodus →
 *Uitgepakte extensie laden* → deze map. Na een wijziging de extensie herladen én
@@ -173,6 +180,15 @@ sleutelpatronen in de provider controleren, niet de UI.
 
 ## Testen
 
+CI draait bij elke PR `tools/check.js` en `tools/test-parser.js` op Node 20, 22 en
+24 en bouwt de fixture en previews. Zie
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+De iconen worden **op pixelniveau** vergeleken met wat `make-icons.js` tekent,
+niet op bytes: `zlib` comprimeert per platform net anders, dus dezelfde tekening
+levert op Linux een andere PNG op dan op macOS. Een bytevergelijking faalde
+daardoor meteen in CI terwijl er niets mis was.
+
 `tools/test-parser.js` draait de **echte** interceptor en providers in een
 nagebootste browser (`vm` + fake `window`) over realistische payloads. Een nieuwe
 provider of formaatvariant hoort daar een sectie te krijgen, niet een unit-mock.
@@ -263,7 +279,7 @@ wordt geweigerd met `GH006: Protected branch update failed`.
 | Branch verwijderen | uit |
 | Lineaire historie verplicht | aan (dus squash of rebase mergen, geen merge-commit) |
 | Openstaande discussies afronden | aan |
-| Verplichte status checks | geen — er is nog geen CI |
+| Verplichte status checks | `Node 20` / `Node 22` / `Node 24` |
 
 Zit je vast en moet je er echt omheen, dan zet je hem tijdelijk uit en meteen
 weer aan:
@@ -276,23 +292,9 @@ gh api -X PUT repos/chapter42/fanouts/branches/main/protection --input .github/b
 
 Doe dat alleen als er echt geen PR-route is, en zet hem terug voor je verder gaat.
 
-Komt er CI, voeg de check dan toe onder `required_status_checks` zodat `npm test`
-groen moet zijn voor een merge kan.
-
-### Continuous integration
-
-Bij elke PR draait [`.github/workflows/ci.yml`](.github/workflows/ci.yml) op Node
-20, 22 en 24. De trigger heeft bewust **geen** branch-filter: bij gestapelde PR's
-mikt de ene op de andere in plaats van op `main`, en die horen net zo goed
-getest te worden.
-
-Let op bij het instellen van verplichte checks: een PR kan ze alleen halen als
-de workflow óók op zijn eigen branch staat. Introduceer je CI in een gestapelde
-reeks, zet het workflow-bestand dan in de onderste branch.
-
 ### Mergen en uitbrengen
 
-1. `npm test` groen, CI (als die er is) groen
+1. `npm test` groen (lokaal) en CI groen op de PR
 2. Merge via GitHub (squash, zodat `main` één commit per onderwerp houdt)
 3. Verdient het een release? Dan een aparte kleine PR die versie in
    `manifest.json` **en** `package.json` gelijk zet en de `Unreleased`-kop

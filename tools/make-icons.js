@@ -161,10 +161,18 @@ function draw(size) {
   return c.toPng();
 }
 
-const dir = path.join(__dirname, '..', 'icons');
-fs.mkdirSync(dir, { recursive: true });
-[16, 32, 48, 128].forEach((s) => {
-  const file = path.join(dir, `icon${s}.png`);
-  fs.writeFileSync(file, draw(s));
-  console.log('geschreven:', path.relative(process.cwd(), file), fs.statSync(file).size + ' bytes');
-});
+const SIZES = [16, 32, 48, 128];
+
+module.exports = { draw, encodePng, SIZES };
+
+// Alleen naar schijf schrijven als dit bestand direct wordt uitgevoerd; bij
+// require() willen we de tekening in het geheugen kunnen vergelijken.
+if (require.main === module) {
+  const dir = path.join(__dirname, '..', 'icons');
+  fs.mkdirSync(dir, { recursive: true });
+  SIZES.forEach((s) => {
+    const file = path.join(dir, `icon${s}.png`);
+    fs.writeFileSync(file, draw(s));
+    console.log('geschreven:', path.relative(process.cwd(), file), fs.statSync(file).size + ' bytes');
+  });
+}
