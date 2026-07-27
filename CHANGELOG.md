@@ -4,6 +4,10 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
 [Keep a Changelog](https://keepachangelog.com/nl/1.1.0/), versienummers volgen
 [Semantic Versioning](https://semver.org/lang/nl/).
 
+## [Unreleased]
+
+Nog niets uitgebracht.
+
 ## [0.3.1] — 2026-07-27
 
 ### Gewijzigd
