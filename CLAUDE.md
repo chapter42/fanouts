@@ -279,6 +279,17 @@ Doe dat alleen als er echt geen PR-route is, en zet hem terug voor je verder gaa
 Komt er CI, voeg de check dan toe onder `required_status_checks` zodat `npm test`
 groen moet zijn voor een merge kan.
 
+### Continuous integration
+
+Bij elke PR draait [`.github/workflows/ci.yml`](.github/workflows/ci.yml) op Node
+20, 22 en 24. De trigger heeft bewust **geen** branch-filter: bij gestapelde PR's
+mikt de ene op de andere in plaats van op `main`, en die horen net zo goed
+getest te worden.
+
+Let op bij het instellen van verplichte checks: een PR kan ze alleen halen als
+de workflow óók op zijn eigen branch staat. Introduceer je CI in een gestapelde
+reeks, zet het workflow-bestand dan in de onderste branch.
+
 ### Mergen en uitbrengen
 
 1. `npm test` groen, CI (als die er is) groen
