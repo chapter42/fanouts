@@ -250,6 +250,35 @@ bugfix ook hoe hij door de mazen kwam.
 Bij UI-wijzigingen een screenshot uit `npm run preview` — beoordeel die zelf
 vóór je de PR opent, niet erna.
 
+### Branch protection
+
+`main` is beschermd en dat geldt **ook voor de repo-eigenaar**. Een directe push
+wordt geweigerd met `GH006: Protected branch update failed`.
+
+| Regel | Stand |
+| --- | --- |
+| Wijzigingen alleen via PR | aan (0 approvals nodig — solo werkt dus door) |
+| Geldt ook voor admins | aan |
+| Force push | uit |
+| Branch verwijderen | uit |
+| Lineaire historie verplicht | aan (dus squash of rebase mergen, geen merge-commit) |
+| Openstaande discussies afronden | aan |
+| Verplichte status checks | geen — er is nog geen CI |
+
+Zit je vast en moet je er echt omheen, dan zet je hem tijdelijk uit en meteen
+weer aan:
+
+```bash
+gh api -X DELETE repos/chapter42/fanouts/branches/main/protection   # uit
+# … doe wat je moet doen …
+gh api -X PUT repos/chapter42/fanouts/branches/main/protection --input .github/branch-protection.json
+```
+
+Doe dat alleen als er echt geen PR-route is, en zet hem terug voor je verder gaat.
+
+Komt er CI, voeg de check dan toe onder `required_status_checks` zodat `npm test`
+groen moet zijn voor een merge kan.
+
 ### Mergen en uitbrengen
 
 1. `npm test` groen, CI (als die er is) groen
