@@ -15,6 +15,7 @@ npm test        # projectregels + 108 gedragschecks — draai dit voor elke comm
 npm run check   # alleen de statische projectregels (snel)
 npm run preview # fixture + dev/*-preview.html om de UI te bekijken
 npm run icons   # iconen opnieuw genereren
+npm run package # schone ZIP voor de Chrome Web Store
 ```
 
 `tools/check.js` dwingt de harde regels hieronder machinaal af: geen

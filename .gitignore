@@ -3,3 +3,4 @@ dev/*-preview.html
 .DS_Store
 node_modules/
 .claude/settings.local.json
+fanouts-v*.zip

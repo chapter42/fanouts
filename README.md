@@ -271,6 +271,8 @@ src/
 - [CHANGELOG.md](CHANGELOG.md) — wat er per versie is veranderd
 - [SECURITY.md](SECURITY.md) — datastromen, permissies en hoe je een kwetsbaarheid meldt
 - [CLAUDE.md](CLAUDE.md) — architectuur, conventies en valkuilen voor wie eraan doorwerkt
+- [PRIVACY.md](PRIVACY.md) — privacybeleid
+- [CHROMEWEBSTORE.md](CHROMEWEBSTORE.md) — voorbereiding voor de Chrome Web Store
 
 ## Licentie
 

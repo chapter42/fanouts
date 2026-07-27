@@ -1,6 +1,6 @@
 {
   "name": "fanouts",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "private": true,
   "description": "Chrome-extensie die ChatGPT's query fan-out, bronnen en entiteiten vastlegt en exporteerbaar maakt.",
   "scripts": {
@@ -8,7 +8,8 @@
     "test": "node tools/check.js && node tools/test-parser.js",
     "icons": "node tools/make-icons.js",
     "fixture": "node tools/make-fixture.js",
-    "preview": "node tools/make-fixture.js && node tools/make-previews.js"
+    "preview": "node tools/make-fixture.js && node tools/make-previews.js",
+    "package": "node tools/package.js"
   },
   "repository": {
     "type": "git",

@@ -15,6 +15,24 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
   themavariabelen, versies gelijk in manifest en package, en de iconen die
   pixel-voor-pixel overeenkomen met hun generator.
 
+## [0.3.4] — 2026-07-27
+
+### Toegevoegd
+- `CHROMEWEBSTORE.md` — alle listinginformatie voor de Chrome Web Store, met een
+  onderbouwing per permissie en een eerlijke opsomming van de beperkingen.
+- `PRIVACY.md` — privacybeleid, versiebeheerd naast de code zodat het niet uit de
+  pas kan lopen met wat de extensie doet.
+- `npm run package` bouwt een schone ZIP met alleen wat Chrome nodig heeft
+  (`manifest.json`, `icons/`, `src/`, `LICENSE`), draait eerst de projectcontroles
+  en weigert te bouwen als er iets in glipt dat er niet hoort.
+
+### Opgelost
+- **De manifest-beschrijving was 174 tekens** terwijl de Chrome Web Store op 132
+  afkapt. Die zou dus afgekapt in de zoekresultaten staan. Viel niet eerder op
+  omdat Chrome de beschrijving lokaal wél volledig toont; de limiet geldt alleen
+  in de store. `check.js` bewaakt nu de lengte, plus de naamlengte en de regel dat
+  er geen merknaam in de extensienaam staat.
+
 ## [0.3.3] — 2026-07-27
 
 ### Gewijzigd
@@ -130,6 +148,7 @@ Eerste versie. ChatGPT-only.
 - Instelling *mijn domeinen* voor share-of-voice-markering.
 - Testsuite die de echte interceptor in een nagebootste browser draait.
 
+[0.3.4]: https://github.com/chapter42/fanouts/releases/tag/v0.3.4
 [0.3.3]: https://github.com/chapter42/fanouts/releases/tag/v0.3.3
 [0.3.2]: https://github.com/chapter42/fanouts/releases/tag/v0.3.2
 [0.3.1]: https://github.com/chapter42/fanouts/releases/tag/v0.3.1
