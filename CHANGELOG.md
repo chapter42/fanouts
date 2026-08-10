@@ -7,6 +7,11 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
 ## [Unreleased]
 
 ### Toegevoegd
+- `docs/prd-fanout-update.md` — voorstel voor de volgende uitbreidingsronde
+  (provenance, engine-classificatie, retrieval-funnel, layer-honest rapportage),
+  plus `docs/prd-review.md`: een toetsing van dat voorstel aan de code, met de
+  blokkerende vragen die uit de codebase te beantwoorden zijn en drie botsingen
+  met bestaande harde regels.
 - CI op elke PR: `tools/check.js` en de testsuite op Node 20, 22 en 24, plus het
   bouwen van fixture en previews.
 - `tools/check.js` — statische controle op de projectregels: geen dependencies,
