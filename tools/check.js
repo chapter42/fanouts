@@ -68,14 +68,18 @@ const htmlMissing = [];
 ok(htmlMissing.length === 0, 'alle script- en stylesheet-verwijzingen in de HTML bestaan', htmlMissing.join(', '));
 
 const docMissing = [];
-['README.md', 'CLAUDE.md', 'SECURITY.md', 'CHANGELOG.md'].forEach(function (f) {
+['README.md', 'CLAUDE.md', 'SECURITY.md', 'CHANGELOG.md']
+  .concat(exists('docs') ? walk('docs', '.md') : [])
+  .forEach(function (f) {
   if (!exists(f)) return;
   const re = /\]\((?!https?:|#|mailto:)([^)]+)\)/g;
   let m;
   const text = read(f);
   while ((m = re.exec(text)) !== null) {
-    const target = m[1].replace(/#.*$/, '').replace(/\/$/, '');
-    if (target && !exists(target)) docMissing.push(f + ' → ' + m[1]);
+    const raw = m[1].replace(/#.*$/, '').replace(/\/$/, '');
+    if (!raw) continue;
+    const target = path.normalize(path.join(path.dirname(f), raw));
+    if (!exists(target)) docMissing.push(f + ' → ' + m[1]);
   }
 });
 ok(docMissing.length === 0, 'alle interne links in de documentatie bestaan', docMissing.join(', '));
