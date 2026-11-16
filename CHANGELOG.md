@@ -15,6 +15,30 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
   themavariabelen, versies gelijk in manifest en package, en de iconen die
   pixel-voor-pixel overeenkomen met hun generator.
 
+### Opgelost
+- **ChatGPT werd niet meer opgenomen zodra een andere extensie `window.fetch`
+  beheert.** Een extensie die fetch als accessor installeert (getter geeft haar
+  wrapper, setter onthoudt alleen de laatste toewijzing) liet onze wrapper uit de
+  keten vallen zodra ChatGPT zelf fetch opnieuw toewees. De interceptor heeft nu
+  een tweede route die niet van `window.fetch` afhangt: hij herkent de response
+  aan zijn url op het moment dat de pagina de body leest en leest dan een clone
+  mee. Een response en zijn clones worden hooguit één keer afgetapt. *Viel niet
+  eerder op omdat er niets faalt: geen fout, geen waarschuwing, alleen een leeg
+  paneel. En de testsuite voerde de stream altijd door onze eigen wrapper, dus
+  die kon dit niet zien.*
+- **ChatGPT's stream werd maar voor een deel gereconstrueerd.** Het formaat is
+  verschoven: het frame heet `delta` maar de data draagt geen `type` meer, pad en
+  operatie blijven gelden voor volgende events (`{v:{message}}` na één `add`,
+  `{v:[…]}` na één `patch`), `append` vult arrays en objecten aan, en er is een
+  `truncate`. Wij hielden alleen het eerste bericht over. *Viel niet eerder op
+  omdat de fixture in de testsuite het oude formaat bleef voeren; die is nu
+  aangevuld met een stream naar een echte opname.*
+- De zoekopdrachten van ChatGPT's `web.run`-tool staan in `search_model_queries`
+  op het tool-antwoord. Die werden alleen via de deep-scan gevonden, en hingen
+  daardoor niet aan een tool-call en kregen geen bronnen.
+- De prompt komt ook binnen als de request body buiten bereik is: uit het
+  `input_message`-event, of uit het user-bericht aan het begin van de stream.
+
 ## [Unreleased]
 
 ### Toegevoegd

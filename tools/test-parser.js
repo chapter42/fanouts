@@ -81,6 +81,12 @@ function runInterceptor(sseText, requestBody, opts) {
   sandbox.location = fakeWindow.location;
   vm.createContext(sandbox);
 
+  // De interceptor patcht Response.prototype, en dat is hier Node's eigen
+  // Response. Zonder herstel stapelen de patches van elke run zich op.
+  const RESPONSE_KEYS = ['clone', 'body', 'text', 'json', 'arrayBuffer'];
+  const pristine = RESPONSE_KEYS.map((k) => Object.getOwnPropertyDescriptor(Response.prototype, k));
+  const restoreResponse = () => RESPONSE_KEYS.forEach((k, i) => Object.defineProperty(Response.prototype, k, pristine[i]));
+
   // De echte fetch-implementatie die de interceptor omwikkelt.
   fakeWindow.fetch = async function (url, init) {
     const stream = new ReadableStream({
@@ -93,23 +99,63 @@ function runInterceptor(sseText, requestBody, opts) {
         controller.close();
       }
     });
-    return new Response(stream, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+    const res = new Response(stream, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+    // Een zelfgebouwde Response heeft geen url; een echte fetch-response wel.
+    Object.defineProperty(res, 'url', { value: String(url) });
+    return res;
   };
+
+  /*
+   * Bootst een andere extensie na die window.fetch als accessor installeert
+   * vóórdat wij laden: de getter geeft haar wrapper, de setter onthoudt alleen
+   * de laatste toewijzing. Wijst de pagina daarna zelf fetch toe, dan valt onze
+   * wrapper uit de keten — precies wat er in het wild gebeurde.
+   */
+  if (opts.hijack) {
+    const native = fakeWindow.fetch;
+    let downstream = native;
+    let busy = false;
+    const foreign = function () {
+      if (busy) return native.apply(this, arguments);
+      busy = true;
+      try { return downstream.apply(this, arguments); } finally { busy = false; }
+    };
+    Object.defineProperty(fakeWindow, 'fetch', {
+      configurable: true,
+      get() { return foreign; },
+      set(v) { downstream = v; }
+    });
+  }
 
   MAIN_FILES.forEach((f) => {
     vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
   });
 
+  if (opts.hijack) {
+    // De pagina wikkelt fetch zelf nog eens in, zoals ChatGPT's bundel doet.
+    const seenByPage = fakeWindow.fetch;
+    fakeWindow.fetch = function () { return seenByPage.apply(this, arguments); };
+  }
+
   return sandbox.window
     .fetch(endpoint, { method: 'POST', body: requestBody })
     .then(async (res) => {
-      await res.text(); // originele consumer
+      // De originele consumer. ChatGPT leest de stream via res.body, en maakt
+      // onderweg zelf een clone — die mag geen tweede opname opleveren.
+      if (opts.readVia === 'body') {
+        res.clone().body.cancel();
+        const reader = res.body.getReader();
+        for (;;) { if ((await reader.read()).done) break; }
+      } else {
+        await res.text();
+      }
       // Wachten tot de clone volledig verwerkt is.
       for (let i = 0; i < 60; i++) {
         await new Promise((r) => setTimeout(r, 12));
         if (emitted.some((e) => e.type === 'turn-update' && e.payload && e.payload.done)) break;
       }
       timers.forEach((t) => clearInterval(t));
+      restoreResponse();
       return emitted;
     });
 }
@@ -230,6 +276,134 @@ const STREAM = sse([
     }] }
   ] }
 ]);
+
+/*
+ * Het formaat zoals ChatGPT het eind 2026 stuurt, naar een echte opname:
+ *  - het SSE-frame heet "delta", in de data zelf staat geen type meer
+ *  - de prompt komt terug als input_message
+ *  - na één {p:'',o:'add'} volgen de berichten als kale {v:{message}}
+ *  - na één {o:'patch'} volgen de patches als kale {v:[…]}
+ *  - append groeit arrays en objecten aan, truncate kort tekst in
+ *  - de queries staan in search_model_queries op het tool-antwoord
+ */
+function sseNamed(events) {
+  return events.map((e) => {
+    const name = e.event ? 'event: ' + e.event + '\n' : '';
+    return name + 'data: ' + (typeof e.data === 'string' ? e.data : JSON.stringify(e.data)) + '\n\n';
+  }).join('');
+}
+
+function liveMessage(id, role, extra) {
+  return Object.assign({
+    id: id,
+    author: { role: role, name: null, metadata: {} },
+    create_time: 1794000000,
+    content: { content_type: 'text', parts: [''] },
+    status: 'finished_successfully',
+    recipient: 'all',
+    metadata: { model_slug: 'gpt-5-5' }
+  }, extra || {});
+}
+
+const LIVE_GROUPS = [{
+  type: 'search_result_group',
+  domain: 'fietstest.nl',
+  entries: [{
+    type: 'search_result', url: 'https://www.fietstest.nl/bakfietsen-2026?utm_source=chatgpt.com',
+    title: 'De beste elektrische bakfietsen 2026', snippet: '',
+    ref_id: { turn_index: 0, ref_type: 'search', ref_index: 0 }, pub_date: 1793000000,
+    result_type: 'web', source_name: 'Fietstest', attribution: 'fietstest.nl'
+  }]
+}, {
+  type: 'search_result_group',
+  domain: 'chapter42.com',
+  entries: [{
+    type: 'search_result', url: 'https://chapter42.com/blog/bakfiets-kopen',
+    title: 'Bakfiets kopen — Chapter42', snippet: 'Waar je op let.',
+    ref_id: { turn_index: 0, ref_type: 'search', ref_index: 1 }, pub_date: null,
+    result_type: 'web', attribution: 'chapter42.com'
+  }]
+}];
+
+const LIVE_USER = liveMessage('live-user-1', 'user', {
+  content: { content_type: 'text', parts: ['Wat zijn de beste elektrische bakfietsen van 2026?'] },
+  metadata: { request_id: 'req-1' }
+});
+
+/*
+ * Twee smaken: in een lopende conversatie komt de prompt terug als
+ * input_message, in een nieuwe als gewoon eerste bericht van de stream.
+ */
+function liveStream(promptAsMessage) {
+  const head = promptAsMessage
+    ? [
+      { event: 'delta', data: { p: '', o: 'add', c: 0, v: { conversation_id: CONV_ID, error: null, message: LIVE_USER } } },
+      { event: 'delta', data: { c: 1, v: { conversation_id: CONV_ID, error: null,
+        message: liveMessage('live-sys', 'system', { metadata: { is_visually_hidden_from_conversation: true } }) } } },
+      // Aangepaste instructies komen als verborgen user-bericht en zijn geen prompt.
+      { event: 'delta', data: { c: 2, v: { conversation_id: CONV_ID, error: null,
+        message: liveMessage('live-context', 'user', {
+          content: { content_type: 'user_editable_context', user_profile: 'Ik woon in Utrecht.' },
+          metadata: { is_visually_hidden_from_conversation: true }
+        }) } } }
+    ]
+    : [
+      { data: { type: 'input_message', conversation_id: CONV_ID, input_message: LIVE_USER } },
+      { event: 'delta', data: { p: '', o: 'add', c: 0, v: { conversation_id: CONV_ID, error: null,
+        message: liveMessage('live-sys', 'system', { metadata: { is_visually_hidden_from_conversation: true } }) } } }
+    ];
+
+  return sseNamed([
+  { event: 'delta_encoding', data: '"v1"' },
+  { data: { type: 'resume_conversation_token', kind: 'topic', token: 'tok', conversation_id: CONV_ID } }
+  ].concat(head, [
+  { event: 'delta', data: { c: 1, v: { conversation_id: CONV_ID, error: null,
+    message: liveMessage('live-call', 'assistant', { recipient: 'web.run' }) } } },
+  { event: 'delta', data: { c: 2, v: { conversation_id: CONV_ID, error: null,
+    message: liveMessage('live-queries', 'tool', {
+      author: { role: 'tool', name: 'web.run', metadata: {} },
+      metadata: { search_model_queries: { type: 'search_model_queries', queries: [
+        'beste elektrische bakfiets 2026 test',
+        'elektrische bakfiets twee kinderen vergelijking'
+      ] } }
+    }) } } },
+  { event: 'delta', data: { c: 3, v: { conversation_id: CONV_ID, error: null,
+    message: liveMessage('live-results', 'tool', {
+      author: { role: 'tool', name: 'web.run', metadata: {} },
+      metadata: { search_result_groups: LIVE_GROUPS }
+    }) } } },
+  { data: { type: 'message_marker', conversation_id: CONV_ID, message_id: 'live-answer', marker: 'cot_token', event: 'first' } },
+  { event: 'delta', data: { c: 4, v: { conversation_id: CONV_ID, error: null,
+    message: liveMessage('live-answer', 'assistant', { status: 'in_progress', metadata: { model_slug: 'gpt-5-5', content_references: [] } }) } } },
+
+  { event: 'delta', data: { o: 'patch', v: [
+    { p: '/message/content/parts/0', o: 'append', v: 'De Urban Arrow en de Lovens ' },
+    { p: '/message/metadata', o: 'append', v: { finish_details: { type: 'pending' } } }
+  ] } },
+  { event: 'delta', data: { v: [
+    { p: '/message/content/parts/0', o: 'append', v: 'scoren het best. FOUT' },
+    { p: '/message/metadata/content_references', o: 'append', v: [{
+      type: 'grouped_webpages', matched_text: 'cite', start_idx: 0, end_idx: 20,
+      items: [{ title: 'De beste elektrische bakfietsen 2026', url: 'https://www.fietstest.nl/bakfietsen-2026', attribution: 'fietstest.nl' }]
+    }] }
+  ] } },
+  { event: 'delta', data: { v: [
+    { p: '/message/content/parts/0', o: 'truncate', v: 44 },
+    { p: '/message/content/parts/0', o: 'append', v: ' De Gazelle Makki volgt.' },
+    { p: '/message/metadata/content_references', o: 'append', v: [{
+      type: 'grouped_webpages', matched_text: 'cite', start_idx: 21, end_idx: 40,
+      items: [{ title: 'Bakfiets kopen — Chapter42', url: 'https://chapter42.com/blog/bakfiets-kopen', attribution: 'chapter42.com' }]
+    }] },
+    { p: '/message/status', o: 'replace', v: 'finished_successfully' }
+  ] } },
+  { event: 'delta', data: { p: '/message/metadata/conversation_followup_suggestions_eligible', o: 'replace', v: true } },
+  { data: { type: 'message_stream_complete', conversation_id: CONV_ID } },
+  { data: '[DONE]' }
+  ]));
+}
+
+const LIVE_STREAM = liveStream(false);
+const LIVE_STREAM_NEW = liveStream(true);
 
 /* Legacy: elk event bevat een volledig message-snapshot. */
 const LEGACY_STREAM = sse([
@@ -600,6 +774,72 @@ const LEGACY_STREAM = sse([
   ok(turnsCsv.indexOf(longest.slice(-40)) !== -1, 'ook het einde van het langste antwoord zit in de CSV',
     longest.length + ' tekens');
   ok(/chatgpt \| perplexity|perplexity \| chatgpt/.test(domCsv), 'domeinen-CSV vermeldt meerdere assistenten per rij');
+
+  section('13. ChatGPT — huidig streamformaat');
+  const live = await runInterceptor(LIVE_STREAM, REQUEST_BODY, { readVia: 'body' });
+  ok(live.filter((e) => e.type === 'turn-start').length === 1,
+    'één opname, ook als de pagina zelf een clone van de response maakt');
+  const liveFinal = live.filter((e) => e.type === 'turn-update').pop();
+  ok(!!liveFinal && liveFinal.payload.done === true, 'stream afgerond');
+  ok(liveFinal.payload.messages.length === 5, 'alle vijf berichten gereconstrueerd, niet alleen het eerste',
+    liveFinal.payload.messages.map((m) => m.id));
+  ok(liveFinal.payload.conversationId === CONV_ID, 'conversatie-id uit de stream');
+
+  const liveAnswer = liveFinal.payload.messages.find((m) => m.id === 'live-answer');
+  ok(liveAnswer.content.parts[0] === 'De Urban Arrow en de Lovens scoren het best. De Gazelle Makki volgt.',
+    'kale {v:[…]} telt als patch, en truncate kort de tekst in', liveAnswer.content.parts[0]);
+  ok(liveAnswer.metadata.content_references.length === 2 && !Array.isArray(liveAnswer.metadata.content_references[0]),
+    'append op een array voegt de elementen toe, niet de array zelf', liveAnswer.metadata.content_references.length);
+  ok(liveAnswer.metadata.model_slug === 'gpt-5-5' && liveAnswer.metadata.finish_details,
+    'append op een object vult aan in plaats van te vervangen', Object.keys(liveAnswer.metadata));
+  ok(liveAnswer.status === 'finished_successfully', 'replace binnen een kale patch toegepast');
+
+  const liveTurns = libs.FanoutParser.buildTurns(liveFinal.payload);
+  ok(liveTurns.length === 1, 'precies één turn', liveTurns.length);
+  const liveTurn = liveTurns[0];
+  ok(liveTurn.id === 'chatgpt:' + CONV_ID + ':live-user-1', 'turn-id op het id uit input_message', liveTurn.id);
+  const liveSearches = liveTurn.fanout.filter((q) => q.kind === 'search');
+  ok(liveSearches.length === 2 && liveSearches[0].q === 'beste elektrische bakfiets 2026 test',
+    'queries uit search_model_queries', liveSearches.map((q) => q.q));
+  ok(liveSearches.every((q) => q.toolCall === 0 && q.sourceCount === 2),
+    'queries hangen aan een tool-call en krijgen hun bronnen', liveSearches.map((q) => q.toolCall + '/' + q.sourceCount));
+  ok(liveTurn.sources.length === 2, 'twee unieke bronnen', liveTurn.sources.map((s) => s.url));
+  ok(liveTurn.sources.every((s) => s.origin === 'citation'), 'beide bronnen zijn als geciteerd herkend',
+    liveTurn.sources.map((s) => s.origin));
+  ok(liveTurn.answer.indexOf('Gazelle Makki') !== -1, 'antwoord vastgelegd', liveTurn.answer);
+  ok(liveTurn.model === 'gpt-5-5', 'model herkend', liveTurn.model);
+
+  section('14. ChatGPT — fetch gekaapt door een andere extensie');
+  const hijacked = await runInterceptor(LIVE_STREAM, REQUEST_BODY, { hijack: true, readVia: 'body' });
+  ok(hijacked.filter((e) => e.type === 'turn-start').length === 1,
+    'de stream wordt toch opgepikt, en precies één keer',
+    hijacked.map((e) => e.type).join(','));
+  ok((hijacked.find((e) => e.type === 'turn-start') || { payload: {} }).payload.prompt === '',
+    'de nabootsing klopt: onze fetch-wrapper zat niet in de keten, dus geen request body');
+  const hijackedFinal = hijacked.filter((e) => e.type === 'turn-update').pop();
+  ok(!!hijackedFinal && hijackedFinal.payload.done === true, 'stream afgerond via het Response-vangnet');
+  ok(hijackedFinal && hijackedFinal.payload.prompt.indexOf('bakfietsen van 2026') !== -1,
+    'prompt komt uit input_message als de request body buiten bereik is',
+    hijackedFinal && hijackedFinal.payload.prompt);
+  const hijackedTurns = hijackedFinal ? libs.FanoutParser.buildTurns(hijackedFinal.payload) : [];
+  ok(hijackedTurns.length === 1 && hijackedTurns[0].id === liveTurn.id,
+    'dezelfde turn-id als via de gewone route', hijackedTurns.map((t) => t.id));
+  ok(hijackedTurns.length === 1 && hijackedTurns[0].fanout.length === 2 && hijackedTurns[0].sources.length === 2,
+    'queries en bronnen compleet');
+
+  const hijackedNew = await runInterceptor(LIVE_STREAM_NEW, REQUEST_BODY, { hijack: true, readVia: 'body' });
+  const hijackedNewFinal = hijackedNew.filter((e) => e.type === 'turn-update').pop();
+  const hijackedNewTurns = hijackedNewFinal ? libs.FanoutParser.buildTurns(hijackedNewFinal.payload) : [];
+  ok(hijackedNewTurns.length === 1 && hijackedNewTurns[0].id === liveTurn.id,
+    'nieuwe conversatie: één turn op het user-bericht uit de stream, de verborgen context telt niet mee',
+    hijackedNewTurns.map((t) => t.id));
+  ok(hijackedNewTurns.length === 1 && hijackedNewTurns[0].prompt.indexOf('bakfietsen van 2026') !== -1 &&
+    hijackedNewTurns[0].fanout.length === 2 && hijackedNewTurns[0].answer.indexOf('Gazelle Makki') !== -1,
+    'nieuwe conversatie: prompt, queries en antwoord compleet');
+
+  const hijackedText = await runInterceptor(LIVE_STREAM, REQUEST_BODY, { hijack: true });
+  ok(hijackedText.filter((e) => e.type === 'turn-update' && e.payload.done).length === 1,
+    'ook opgepikt als de pagina res.text() gebruikt in plaats van res.body');
 
   console.log('\n' + (failures === 0
     ? '\x1b[32m' + checks + '/' + checks + ' checks geslaagd\x1b[0m'

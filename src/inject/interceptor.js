@@ -48,6 +48,36 @@
     return '';
   }
 
+  /* ------------------------------------------------------ één keer tappen */
+
+  /*
+   * Een response en al zijn clones vormen één "familie" die we hooguit één keer
+   * aftappen. Dat is nodig omdat er twee routes naar dezelfde stream zijn (de
+   * fetch-wrapper en het Response-vangnet hieronder) en omdat de pagina zelf ook
+   * clones maakt, die dezelfde url dragen.
+   */
+  var families = new WeakMap();
+  var nativeClone = Response.prototype.clone;
+
+  function familyOf(res) {
+    var f = families.get(res);
+    if (!f) { f = { tapped: false }; families.set(res, f); }
+    return f;
+  }
+
+  function claim(res) {
+    var f = familyOf(res);
+    if (f.tapped) return false;
+    f.tapped = true;
+    return true;
+  }
+
+  Response.prototype.clone = function () {
+    var copy = nativeClone.apply(this, arguments);
+    try { families.set(copy, familyOf(this)); } catch (e) { /* noop */ }
+    return copy;
+  };
+
   /* --------------------------------------------------------------- fetch */
 
   var originalFetch = window.fetch;
@@ -58,8 +88,9 @@
    * kan onze code de host-app niet vertragen, ook niet met één microtask.
    */
   async function tapStream(res, args, descriptor) {
-    if (!res || !res.ok || !res.body) return;
-    var clone = res.clone();
+    // Eerst claimen: res.body uitlezen loopt zelf al door het Response-vangnet.
+    if (!res || !res.ok || !claim(res) || !res.body) return;
+    var clone = nativeClone.call(res);
     var ctx = {};
     try {
       ctx = provider.promptFromRequest(await readRequestBody(args)) || {};
@@ -79,8 +110,8 @@
   }
 
   async function tapJson(res, descriptor) {
-    if (!res || !res.ok || !provider.consumeJson) return;
-    var json = await res.clone().json();
+    if (!res || !res.ok || !provider.consumeJson || !claim(res)) return;
+    var json = await nativeClone.call(res).json();
     provider.consumeJson(json, { conversationId: descriptor.conversationId || null }, emit);
   }
 
@@ -105,6 +136,91 @@
     }, function () { /* de pagina handelt zijn eigen fout af */ });
     return pending;
   };
+
+  /* ------------------------------------------------- Response-vangnet */
+
+  /*
+   * De fetch-wrapper hierboven werkt alleen zolang hij in de keten blijft. Dat
+   * is niet gegarandeerd: een andere extensie die window.fetch als accessor
+   * installeert (getter geeft haar wrapper, setter onthoudt alleen de laatste
+   * toewijzing) laat ons vallen zodra de pagina zelf fetch opnieuw toewijst.
+   * We zijn dan onzichtbaar zonder dat er iets faalt.
+   *
+   * Daarom een tweede route die niet van window.fetch afhangt: hoe de aanroep
+   * ook gelopen is, de pagina moet de body van de response lezen. Op dat moment
+   * herkennen we de response aan zijn url en lezen een clone mee. De request
+   * body is hier niet beschikbaar; de provider haalt de prompt dan uit de stream.
+   */
+  var inspected = new WeakSet();
+  var bodyDescriptor = Object.getOwnPropertyDescriptor(Response.prototype, 'body');
+
+  function lateTap(res) {
+    if (inspected.has(res)) return;
+    inspected.add(res);
+    if (!res.ok || res.bodyUsed || !res.url) return;
+
+    // De methode staat niet op een response. De stream-endpoints zijn POST's,
+    // de historie-endpoints GET's, en de url-patronen overlappen niet.
+    var descriptor = provider.match(res.url, 'POST') || provider.match(res.url, 'GET');
+    if (!descriptor || !claim(res)) return;
+
+    var clone = nativeClone.call(res);
+    if (descriptor.type === 'stream') {
+      var now = Date.now();
+      var ctx = { prompt: '', promptId: null, promptTime: now, conversationId: descriptor.conversationId || null };
+      emit('turn-start', {
+        provider: provider.id,
+        conversationId: ctx.conversationId,
+        prompt: '',
+        promptId: null,
+        promptTime: now,
+        pageUrl: location.href
+      });
+      // Een capture zonder prompt en zonder id krijgt in parser.js een sleutel op
+      // basis van de klok, en dus een nieuwe turn bij elke tussentijdse update.
+      // Eén vaste sleutel per stream voorkomt dat. Payloads met ruwe messages
+      // blijven ongemoeid: daar levert het user-bericht in de stream de sleutel.
+      var streamKey = 'stream-' + now;
+      provider.consumeStream(bodyDescriptor.get.call(clone), ctx, function (type, payload) {
+        if (payload && payload.capture && !payload.promptId && !payload.prompt) payload.promptId = streamKey;
+        emit(type, payload);
+      });
+      return;
+    }
+    if (provider.consumeJson) readJsonClone(clone, descriptor);
+  }
+
+  async function readJsonClone(clone, descriptor) {
+    try {
+      provider.consumeJson(await clone.json(), { conversationId: descriptor.conversationId || null }, emit);
+    } catch (err) {
+      console.debug('[Fanouts] meelezen mislukt', err);
+    }
+  }
+
+  function guardedTap(res) {
+    try { lateTap(res); } catch (err) { console.debug('[Fanouts] meelezen mislukt', err); }
+  }
+
+  if (bodyDescriptor && bodyDescriptor.get && bodyDescriptor.configurable) {
+    Object.defineProperty(Response.prototype, 'body', {
+      configurable: true,
+      enumerable: bodyDescriptor.enumerable,
+      get: function () {
+        guardedTap(this);
+        return bodyDescriptor.get.call(this);
+      }
+    });
+
+    ['text', 'json', 'arrayBuffer'].forEach(function (name) {
+      var original = Response.prototype[name];
+      if (typeof original !== 'function') return;
+      Response.prototype[name] = function () {
+        guardedTap(this);
+        return original.apply(this, arguments);
+      };
+    });
+  }
 
   /* ----------------------------------------------------------------- XHR */
 

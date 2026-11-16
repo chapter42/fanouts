@@ -35,22 +35,55 @@
       cur = cur[k];
     }
     var last = keys[keys.length - 1];
+    var target = cur[last];
     if (op === 'append') {
-      if (typeof value === 'string') cur[last] = (typeof cur[last] === 'string' ? cur[last] : '') + value;
-      else if (Array.isArray(cur[last])) cur[last].push(value);
-      else cur[last] = value;
+      // "append" betekent per type iets anders: tekst plakt, een array groeit
+      // (met een array als waarde: element voor element), een object neemt de
+      // sleutels over. Een array als één element pushen of een object vervangen
+      // gooit bronnen weg die ChatGPT stukje bij beetje aanlevert.
+      if (typeof value === 'string') cur[last] = (typeof target === 'string' ? target : '') + value;
+      else if (Array.isArray(target)) {
+        if (Array.isArray(value)) Array.prototype.push.apply(target, value);
+        else target.push(value);
+      } else if (isPlainObject(target) && isPlainObject(value)) {
+        for (var vk in value) {
+          if (Object.prototype.hasOwnProperty.call(value, vk)) target[vk] = value[vk];
+        }
+      } else cur[last] = value;
     } else if (op === 'remove') {
       if (Array.isArray(cur)) cur.splice(Number(last), 1);
       else delete cur[last];
+    } else if (op === 'truncate') {
+      if ((typeof target === 'string' || Array.isArray(target)) && typeof value === 'number') {
+        cur[last] = target.slice(0, value);
+      }
+    } else if (op === 'add' && Array.isArray(cur) && /^\d+$/.test(last)) {
+      cur.splice(Number(last), 0, value);
     } else {
       cur[last] = value;
     }
+  }
+
+  function isPlainObject(v) { return v !== null && typeof v === 'object' && !Array.isArray(v); }
+
+  function isRoot(v) { return isPlainObject(v) && isPlainObject(v.message); }
+
+  function textOfParts(msg) {
+    var parts = (msg && msg.content && msg.content.parts) || [];
+    return parts.map(function (p) {
+      if (typeof p === 'string') return p;
+      if (p && typeof p.text === 'string') return p.text;
+      if (p && p.content_type) return '[' + p.content_type + ']';
+      return '';
+    }).filter(Boolean).join('\n').trim();
   }
 
   function Accumulator(ctx) {
     this.ctx = ctx;
     this.state = null;
     this.lastPath = null;
+    this.lastOp = null;
+    this.input = null;
     this.byId = new Map();
     this.order = [];
     this.conversationId = ctx.conversationId || null;
@@ -71,7 +104,10 @@
 
   Accumulator.prototype.newRoot = function (obj) {
     this.state = obj;
-    this.lastPath = null;
+    // Pad en operatie blijven "plakken": een volgend event zonder p en o is
+    // opnieuw een compleet bericht op de root.
+    this.lastPath = '';
+    this.lastOp = 'add';
     this.track();
   };
 
@@ -80,44 +116,54 @@
     var obj = U.safeParse(data);
     if (obj === null || typeof obj !== 'object') return;
 
-    // 1. Nieuwe root — beide varianten die ChatGPT gebruikt
-    var isRootAdd = (obj.p === '' || obj.p === '/') && obj.v && typeof obj.v === 'object' && obj.v.message;
-    if (isRootAdd || (obj.type === 'delta' && obj.v && typeof obj.v === 'object' && obj.p === undefined)) {
-      this.newRoot(obj.v);
-      return;
-    }
+    // 1. Getypeerde events zonder delta
+    if (obj.type === 'input_message' && isPlainObject(obj.input_message)) this.input = obj.input_message;
+    if (obj.type === 'title_generation' && obj.title) this.title = obj.title;
+    if (obj.conversation_id) this.conversationId = obj.conversation_id;
+
     // 2. Legacy: volledig snapshot per event
     if (obj.message && typeof obj.message === 'object' && obj.type === undefined) {
       this.newRoot(obj);
       return;
     }
-    // 3. Batch-patch
-    if (obj.o === 'patch' && Array.isArray(obj.v)) {
+    if (obj.v === undefined) return;
+
+    /*
+     * 3. Delta. Ontbreken p én o, dan gelden die van het vorige event. ChatGPT
+     * stuurt zo een reeks complete berichten ({p:'',o:'add'} en daarna alleen
+     * {v:{message}}) en een reeks patches ({o:'patch'} en daarna alleen {v:[…]}).
+     * Wie dat niet volgt, houdt alleen het eerste bericht van de stream over.
+     */
+    var hasPath = obj.p !== undefined;
+    var hasOp = obj.o !== undefined;
+    var path = hasPath ? obj.p : (hasOp ? null : this.lastPath);
+    var op = hasOp ? obj.o : (hasPath ? 'append' : this.lastOp);
+
+    if (isRoot(obj.v) && (!hasPath || path === '' || path === '/')) {
+      this.newRoot(obj.v);
+      return;
+    }
+    if (!this.state) return;
+
+    if (Array.isArray(obj.v) && (op === 'patch' || (!hasPath && !hasOp && this.lastOp === 'patch'))) {
       for (var i = 0; i < obj.v.length; i++) {
-        var op = obj.v[i];
-        if (!op || typeof op !== 'object') continue;
-        if (this.state) applyOp(this.state, op.p, op.o || 'replace', op.v);
-        this.lastPath = op.p;
+        var item = obj.v[i];
+        if (!item || typeof item !== 'object') continue;
+        applyOp(this.state, item.p, item.o || 'replace', item.v);
+        this.lastPath = item.p;
       }
+      this.lastOp = 'patch';
       this.track();
       return;
     }
-    // 4. Enkelvoudige op met pad
-    if (obj.p !== undefined && this.state) {
-      applyOp(this.state, obj.p, obj.o || 'append', obj.v);
-      this.lastPath = obj.p;
-      this.track();
-      return;
-    }
-    // 5. "Sticky path": alleen { v: "…" } → append op het laatste pad
-    if (obj.v !== undefined && obj.p === undefined && obj.o === undefined && this.lastPath && this.state) {
-      applyOp(this.state, this.lastPath, 'append', obj.v);
-      this.track();
-      return;
-    }
-    // 6. Overige getypeerde events
-    if (obj.type === 'title_generation' && obj.title) this.title = obj.title;
-    if (obj.conversation_id) this.conversationId = obj.conversation_id;
+
+    if (path === null || path === undefined) return;
+    // Na een batch-patch hoort een kale { v: "…" } bij het laatste pad daarin.
+    if (op === 'patch') op = 'append';
+    applyOp(this.state, path, op || 'append', obj.v);
+    this.lastPath = path;
+    this.lastOp = op || 'append';
+    this.track();
   };
 
   Accumulator.prototype.snapshot = function (done) {
@@ -136,9 +182,13 @@
       conversationId: this.conversationId,
       title: this.title,
       model: this.model,
-      prompt: this.ctx.prompt || '',
-      promptId: this.ctx.promptId || null,
-      promptTime: this.ctx.promptTime || Date.now(),
+      // Zonder request body (de Response-route in interceptor.js) komt de prompt
+      // uit het input_message-event dat ChatGPT zelf terugstuurt. Het id daaruit
+      // gaat voor: het is hetzelfde id dat de historie-route gebruikt.
+      prompt: this.ctx.prompt || textOfParts(this.input),
+      promptId: (this.input && this.input.id) || this.ctx.promptId || null,
+      promptTime: (this.input && this.input.create_time && Math.round(this.input.create_time * 1000)) ||
+        this.ctx.promptTime || Date.now(),
       pageUrl: location.href,
       messages: JSON.parse(JSON.stringify(msgs))
     };
@@ -171,13 +221,7 @@
       for (var i = msgs.length - 1; i >= 0; i--) {
         var m = msgs[i];
         if (!m || !m.author || m.author.role !== 'user') continue;
-        var parts = (m.content && m.content.parts) || [];
-        ctx.prompt = parts.map(function (p) {
-          if (typeof p === 'string') return p;
-          if (p && typeof p.text === 'string') return p.text;
-          if (p && p.content_type) return '[' + p.content_type + ']';
-          return '';
-        }).filter(Boolean).join('\n').trim();
+        ctx.prompt = textOfParts(m);
         ctx.promptId = m.id || null;
         break;
       }

@@ -139,6 +139,13 @@
         else if (o) push(o.q || o.query, o.type === 'image_query' ? 'image' : 'search');
       });
     }
+    // Sinds de web.run-tool staan de queries niet meer in de tool-call zelf maar
+    // in de metadata van het tool-antwoord.
+    if (md.search_model_queries && Array.isArray(md.search_model_queries.queries)) {
+      md.search_model_queries.queries.forEach(function (o) {
+        push(typeof o === 'string' ? o : (o && (o.q || o.query)), 'search');
+      });
+    }
     if (md.command === 'search' && Array.isArray(md.args)) {
       md.args.forEach(function (a) { if (typeof a === 'string') push(a, 'search'); });
     }
