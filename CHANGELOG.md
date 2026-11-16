@@ -6,7 +6,13 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-11-16
+
 ### Toegevoegd
+- `npm run dist` zet alles voor de Chrome Web Store in één map: de ZIP, het
+  icoon, de screenshots, de privacypagina, en de teksten per veld van het
+  dashboard als losse bestanden. De teksten komen uit `CHROMEWEBSTORE.md`, zodat
+  er één bron blijft.
 - `docs/prd-fanout-update.md` — voorstel voor de volgende uitbreidingsronde
   (provenance, engine-classificatie, retrieval-funnel, layer-honest rapportage),
   plus `docs/prd-review.md`: een toetsing van dat voorstel aan de code, met de
@@ -19,6 +25,23 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
   permissies of host-matches, geen hardgecodeerde kleuren buiten de
   themavariabelen, versies gelijk in manifest en package, en de iconen die
   pixel-voor-pixel overeenkomen met hun generator.
+- `npm run screenshots` rendert de storescreenshots headless op exact 1280×800 uit
+  de echte UI, plus een zelfstandige privacypagina in `store-assets/privacy.html`.
+
+### Gewijzigd
+- **Turn-id's van Gemini en Perplexity volgen de conversatie uit de URL.** Dat was
+  nodig om een turn onder *Deze conversatie* te laten vallen, maar het betekent dat
+  een nieuwe opname een ander id krijgt dan een turn die vóór deze versie is
+  opgeslagen. Bestaande turns blijven staan en worden niet samengevoegd met nieuwe.
+  Daarom een MINOR en geen PATCH.
+- De korte beschrijving belooft niet langer zoekopdrachten van Gemini; die geeft
+  Gemini niet meer prijs. De uitgebreide beschrijving en de bekende beperkingen in
+  `CHROMEWEBSTORE.md` zeggen dat nu ook.
+- De demo-fixture toont Gemini zonder zoekopdrachten, zodat de previews en de
+  storescreenshots laten zien wat een gebruiker werkelijk krijgt.
+- Het privacybeleid staat live op chapter42.com; die URL is nu overal vastgelegd.
+  De pagina noemt het contactadres ook als platte tekst, omdat e-mailverhulling het
+  anders vervangt door `[email protected]` voor wie zonder JavaScript leest.
 
 ### Opgelost
 - **ChatGPT werd niet meer opgenomen zodra een andere extensie `window.fetch`
@@ -77,17 +100,6 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
   zoekstap is leeg. Bronnen, antwoord en prompt worden opgenomen, zoekopdrachten
   niet. Er staat een test op dat de vaste labels van een zoekstap ("Searched the
   web") niet als zoekopdracht worden geteld.
-
-## [Unreleased]
-
-### Toegevoegd
-- `npm run screenshots` rendert de storescreenshots headless op exact 1280×800 uit
-  de echte UI, plus een zelfstandige privacypagina in `store-assets/privacy.html`.
-
-### Gewijzigd
-- Het privacybeleid staat live op chapter42.com; die URL is nu overal vastgelegd.
-  De pagina noemt het contactadres ook als platte tekst, omdat e-mailverhulling het
-  anders vervangt door `[email protected]` voor wie zonder JavaScript leest.
 
 ## [0.3.4] — 2026-07-27
 

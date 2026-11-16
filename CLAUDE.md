@@ -11,11 +11,12 @@ afvangt, lokaal analyseert en exporteerbaar maakt. Vanilla JS, **geen build-stap
 geen dependencies**. `npm` wordt alleen gebruikt als scriptrunner.
 
 ```bash
-npm test        # projectregels + 108 gedragschecks — draai dit voor elke commit
+npm test        # projectregels + 154 gedragschecks — draai dit voor elke commit
 npm run check   # alleen de statische projectregels (snel)
 npm run preview # fixture + dev/*-preview.html om de UI te bekijken
 npm run icons   # iconen opnieuw genereren
 npm run package # schone ZIP voor de Chrome Web Store
+npm run dist    # complete indienmap in dist/: ZIP, beelden en teksten per storeveld
 npm run screenshots # store-screenshots op 1280×800 (vereist Chrome)
 ```
 
@@ -140,13 +141,17 @@ Belangrijk bij het inschatten van bugmeldingen:
 
 - **ChatGPT** — formaat precies bekend, tool-call geeft de queries expliciet prijs.
   Meest betrouwbaar.
-- **Perplexity** — twee payloadvormen, beide gedekt, maar dit schuift het snelst.
+- **Perplexity** — drie payloadvormen, alle gedekt, maar dit schuift het snelst.
   Extractie op *sleutelnamen* na volledig uitpakken van JSON-in-JSON, niet op paden.
+  De stream gebruikt CRLF als regeleinde; de conversatie is wat er in de URL staat.
 - **Gemini** — positionele arrays zonder veldnamen. Extractie ankert op
   `grounding-api-redirect`-URL's en `google.com/search?q=`-links, plus
   stringarrays die op **afstand ≤ 1** van een groundingblok staan. Die
   afstandsgrens is essentieel: zonder die grens haalt de regel hogerop in de boom
-  willekeurige tekst binnen. Verandert Google iets, dan levert dit *minder* op in
+  willekeurige tekst binnen. **Sinds eind 2026 stuurt Gemini de tekst van zijn
+  zoekopdrachten niet meer mee** (het veld in de zoekstap is leeg); bronnen komen
+  nu uit de resultaten van die zoekstap. 0 queries bij Gemini is dus normaal, 0
+  bronnen niet. Verandert Google iets, dan levert dit *minder* op in
   plaats van een fout — lege Gemini-turns zijn het signaal.
 
 Bij formaatdrift: eerst de deep-scan-vangnetten in `parser.js` en de
