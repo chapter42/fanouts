@@ -652,6 +652,77 @@ const LEGACY_STREAM = sse([
   ok(pplxTurn.entities.some((e) => e.name === 'HubSpot'), 'entiteiten werken op Perplexity-data',
     pplxTurn.entities.slice(0, 8).map((e) => e.name));
 
+  /*
+   * Zoals Perplexity het eind 2026 stuurt: frames met CRLF als regeleinde, het
+   * antwoord en de zoekopdrachten als items in een workflow, en de conversatie
+   * op /session/<uuid> in plaats van /search/<slug>.
+   */
+  const PPLX_SESSION = 'ba9a6cbe-5ae3-489d-8939-6def6a54f2d0';
+  const PPLX_BASE = {
+    backend_uuid: '64d2f8ab-7913-421b-ac4c-8d69d20e511c',
+    context_uuid: 'fb314c01-3f72-410e-82f1-b2c8d60cfdac',
+    thread_url_slug: '64d2f8ab-7913-421b-ac4c-8d69d20e511c',
+    display_model: 'turbo',
+    query_str: 'Welke bakfiets heeft de laagste prijs in Nederland?'
+  };
+  const PPLX_LIVE_FRAMES = [
+    Object.assign({}, PPLX_BASE, { status: 'PENDING', blocks: [
+      { intended_usage: 'workflow_root', diff_block: { field: 'workflow_block', patches: [
+        { op: 'replace', path: '', value: { version: '1.0', status: 'IN_PROGRESS', headline: '' } }
+      ] } }
+    ] }),
+    Object.assign({}, PPLX_BASE, { status: 'COMPLETED', final_sse_message: true, blocks: [
+      { intended_usage: 'workflow_root', workflow_block: { version: '1.0', status: 'COMPLETED', steps: [
+        { status: 'COMPLETED', title: 'Zoekt prijzen voor de bakfietsen in Nederland', tool_name: 'search_web', items: [
+          { id: 'a:item:0', type: 'WORKFLOW_ITEM_QUERIES', payload: { queries_payload: { queries: [
+            'Urban Arrow Family prijs Nederland 2026',
+            'Lovens Explorer 2 prijs Nederland 2026',
+            'Gazelle Makki Load prijs Nederland 2026'
+          ] } } }
+        ] },
+        { status: 'COMPLETED', title: 'Searching the web', tool_name: 'search_web', items: [] },
+        { status: 'COMPLETED', items: [
+          { id: 'b', type: 'WORKFLOW_ITEM_TEXT', payload: { text_payload: {
+            text: 'De **Lovens Explorer 2** heeft de laagste duidelijk vermelde nieuwprijs in Nederland. De Urban Arrow Family is duurder.'
+          } } }
+        ] }
+      ] } },
+      { intended_usage: 'web_results', web_result_block: { progress: 'DONE', web_results: [
+        { name: 'Lovens Explorer 2 — Fietsvoordeelshop', snippet: 'Vanaf 5.199 euro.', url: 'https://www.fietsvoordeelshop.nl/lovens-explorer-2', is_attachment: false },
+        { name: 'Urban Arrow Family', snippet: 'Prijzen en uitvoeringen.', url: 'https://urbanarrow.com/nl/family', is_attachment: false }
+      ] } },
+      { intended_usage: 'pending_followups', pending_followups_block: { followups: [] } }
+    ], related_queries: ['Wat kosten de accessoires zoals een regenkap'] })
+  ];
+  const PPLX_LIVE = PPLX_LIVE_FRAMES.map((f) => 'event: message\r\ndata: ' + JSON.stringify(f) + '\r\n\r\n').join('') +
+    'event: end_of_stream\r\ndata: {}\r\n\r\n';
+
+  const pplxLive = await runInterceptor(PPLX_LIVE, PPLX_BODY, {
+    host: 'www.perplexity.ai', href: 'https://www.perplexity.ai/session/' + PPLX_SESSION,
+    endpoint: 'https://www.perplexity.ai/rest/sse/perplexity_ask', readVia: 'body'
+  });
+  const plFinal = pplxLive.filter((e) => e.type === 'turn-update').pop();
+  const plTurn = plFinal ? libs.FanoutParser.buildTurns(plFinal.payload)[0] : null;
+  const plq = plTurn ? plTurn.fanout.filter((q) => q.kind === 'search').map((q) => q.q) : [];
+  ok(plq.length === 3 && plq[0] === 'Urban Arrow Family prijs Nederland 2026',
+    'frames met CRLF als regeleinde worden herkend, ook over de brokgrenzen heen', plq);
+  ok(plq.indexOf('the web') === -1 && !plq.some((q) => /^t prijzen/.test(q)),
+    'staptitels ("Searching the web", "Zoekt prijzen voor …") zijn geen zoekopdrachten', plq);
+  ok(!!plTurn && plTurn.sources.length === 2, 'bronnen uit het web_result_block', plTurn && plTurn.sources.map((s) => s.domain));
+  ok(!!plTurn && /Lovens Explorer 2/.test(plTurn.answer), 'antwoord uit het tekst-item van de workflow', plTurn && plTurn.answer.slice(0, 50));
+  ok(!!plTurn && plTurn.conversationId === PPLX_SESSION, 'conversatie-id uit /session/ in de URL', plTurn && plTurn.conversationId);
+  ok(!!plTurn && plTurn.conversationUrl === 'https://www.perplexity.ai/session/' + PPLX_SESSION,
+    'link naar de conversatie gebruikt /session/', plTurn && plTurn.conversationUrl);
+  ok(!!plTurn && plTurn.fanout.filter((q) => q.kind === 'related').length === 1, 'vervolgvraag opgepikt');
+
+  // Een nieuwe vraag begint op /search/new/<uuid>; "new" is geen conversatie.
+  const pplxNew = await runInterceptor(PPLX_LIVE, PPLX_BODY, {
+    host: 'www.perplexity.ai', href: 'https://www.perplexity.ai/search/new/b0b092d1-fa64-477d-9bd3-52cb518f38b4',
+    endpoint: 'https://www.perplexity.ai/rest/sse/perplexity_ask'
+  });
+  const pnIds = pplxNew.filter((e) => e.type === 'turn-update').map((e) => e.payload.conversationId);
+  ok(pnIds.length > 0 && pnIds.indexOf('new') === -1, '"new" uit /search/new/ wordt nooit een conversatie-id', pnIds);
+
   /* =================================================================== */
   section('10. Gemini — batchexecute met positionele arrays');
 

@@ -312,7 +312,11 @@
 
   var PROVIDERS = {
     chatgpt: { label: 'ChatGPT', url: function (id) { return 'https://chatgpt.com/c/' + id; } },
-    perplexity: { label: 'Perplexity', url: function (id) { return 'https://www.perplexity.ai/search/' + id; } },
+    perplexity: { label: 'Perplexity', url: function (id) {
+      // Nieuwe conversaties leven op /session/<uuid>, oudere op /search/<slug>.
+      var uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      return 'https://www.perplexity.ai/' + (uuid ? 'session/' : 'search/') + id;
+    } },
     gemini: { label: 'Gemini', url: function (id) { return 'https://gemini.google.com/app/' + id; } }
   };
 

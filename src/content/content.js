@@ -45,7 +45,8 @@
     if (PROVIDER === 'chatgpt') {
       m = /\/c\/([0-9a-fA-F-]{36})/.exec(location.pathname);
     } else if (PROVIDER === 'perplexity') {
-      m = /\/search\/([^/?#]+)/.exec(location.pathname);
+      m = /\/(?:search|session)\/([^/?#]+)/.exec(location.pathname);
+      if (m && m[1] === 'new') m = null;
     } else {
       m = /\/app\/([0-9a-zA-Z_-]+)/.exec(location.pathname);
     }
