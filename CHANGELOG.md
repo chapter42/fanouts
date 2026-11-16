@@ -41,6 +41,27 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
 - Een turn zonder prompt en zonder prompt-id kreeg een sleutel op basis van de
   klok, en dus een nieuwe, lege turn bij elke tussentijdse update van dezelfde
   stream. Elke stream draagt nu één vaste sleutel waar de parser op terugvalt.
+- **Gemini leverde lege of onzinnige turns op.** Vier oorzaken:
+  - Gemini roept `fetch` aan met een `Request`-object. De aanroep verbruikt de
+    body, en wij lazen hem pas daarna: de prompt was altijd leeg. De clone wordt
+    nu vóór de aanroep gemaakt.
+  - Als prompt kozen we de langste string in `f.req`. Dat is tegenwoordig een
+    sessietoken van een paar duizend tekens. De prompt wordt nu op zijn vaste
+    plek gelezen; de langste string is alleen nog het vangnet.
+  - Het conversatie-id kreeg de `c_`-vorm uit de payload, terwijl de URL en dus
+    het paneel de vorm zonder voorvoegsel gebruiken. Een Gemini-turn viel daardoor
+    nooit onder *Deze conversatie*.
+  - Elke losse RPC over `batchexecute` (instellingen, zijbalk, titels) werd een
+    turn. Alleen wat op bronnen of zoekopdrachten gegrond is telt nog.
+
+  Daarnaast wordt de stream nu tussentijds verwerkt in plaats van pas bij het
+  sluiten, en won de favicon-url het niet meer van de titel van een zoekresultaat.
+  *Viel niet eerder op omdat lege Gemini-turns het afgesproken signaal van
+  formaatdrift zijn, en niemand keek: de fixture voerde het oude formaat.*
+- Gemini stuurt de tekst van zijn zoekopdrachten niet meer mee: het veld in de
+  zoekstap is leeg. Bronnen, antwoord en prompt worden opgenomen, zoekopdrachten
+  niet. Er staat een test op dat de vaste labels van een zoekstap ("Searched the
+  web") niet als zoekopdracht worden geteld.
 
 ## [Unreleased]
 

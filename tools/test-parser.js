@@ -89,6 +89,8 @@ function runInterceptor(sseText, requestBody, opts) {
 
   // De echte fetch-implementatie die de interceptor omwikkelt.
   fakeWindow.fetch = async function (url, init) {
+    // Een echte fetch verbruikt de body van een Request-object meteen.
+    if (url instanceof Request && url.body) url.text();
     const stream = new ReadableStream({
       start(controller) {
         const enc = new TextEncoder();
@@ -138,8 +140,11 @@ function runInterceptor(sseText, requestBody, opts) {
     fakeWindow.fetch = function () { return seenByPage.apply(this, arguments); };
   }
 
-  return sandbox.window
-    .fetch(endpoint, { method: 'POST', body: requestBody })
+  const call = opts.asRequest
+    ? sandbox.window.fetch(new Request(endpoint, { method: 'POST', body: requestBody }))
+    : sandbox.window.fetch(endpoint, { method: 'POST', body: requestBody });
+
+  return call
     .then(async (res) => {
       // De originele consumer. ChatGPT leest de stream via res.body, en maakt
       // onderweg zelf een clone — die mag geen tweede opname opleveren.
@@ -695,7 +700,8 @@ const LEGACY_STREAM = sse([
   const gStart = geminiEmitted.find((e) => e.type === 'turn-start');
   ok(gStart && gStart.payload.provider === 'gemini', 'Gemini-provider gekozen', gStart && gStart.payload.provider);
   ok(gStart && /laadpaal/i.test(gStart.payload.prompt), 'prompt uit het f.req-veld gehaald', gStart && gStart.payload.prompt);
-  ok(gStart && gStart.payload.conversationId === 'c_9f8e7d6c5b4a', 'conversatie-id uit f.req', gStart && gStart.payload.conversationId);
+  ok(gStart && gStart.payload.conversationId === '9f8e7d6c5b4a',
+    'conversatie-id uit f.req, in de vorm die ook in de URL staat', gStart && gStart.payload.conversationId);
 
   const gFinal = geminiEmitted.filter((e) => e.type === 'turn-update').pop();
   ok(!!gFinal && gFinal.payload.done, 'Gemini-capture afgerond');
@@ -717,6 +723,82 @@ const LEGACY_STREAM = sse([
   ok(/Alfen/.test(gTurn.answer), 'antwoordtekst herkend als langste prozastring', gTurn.answer.slice(0, 50));
   ok(gTurn.entities.some((e) => /Alfen/.test(e.name)), 'entiteiten werken op Gemini-data',
     gTurn.entities.slice(0, 8).map((e) => e.name));
+
+  ok(gTurn.conversationId === '9f8e7d6c5b4a' && gTurn.conversationUrl === 'https://gemini.google.com/app/9f8e7d6c5b4a',
+    'turn hangt aan de conversatie uit de URL, zodat het paneel hem onder "Deze conversatie" toont',
+    gTurn.conversationId + ' | ' + gTurn.conversationUrl);
+
+  /*
+   * Zoals Gemini het eind 2026 stuurt: fetch met een Request-object, en per
+   * zoekstap een blok "Searched the web" met de resultaten. De zoekopdracht zelf
+   * staat er niet meer in — dat veld is leeg — dus die verwachten we ook niet.
+   */
+  const GEMINI_LIVE_INNER = JSON.stringify([
+    null,
+    ['c_e5e09f6fd82a1175', 'r_77aa88bb'],
+    null, null,
+    [[
+      'rc_ddeeff',
+      ['De Nefit Bosch Compress 5800i AW komt als beste uit de test van de Consumentenbond. Voor een hybride opstelling scoort de Quatt hoog op prijs en installatiegemak.'],
+      null, null, null, null, null, null, [1], 'nl'
+    ]],
+    [[[
+      [], 'Searched the web', 'Google Search', 'https://www.gstatic.com/images/branding/search.png', [], 'Searched the web', '',
+      [
+        ['https://t2.gstatic.com/faviconV2?url=https://www.consumentenbond.nl&client=BARD&type=FAVICON&size=256',
+          'https://www.consumentenbond.nl/warmtepomp/beste-warmtepomp', 'Beste warmtepomp 2026 | testresultaten', null, []],
+        ['https://t0.gstatic.com/faviconV2?url=https://www.coen-plus.nl&client=BARD&type=FAVICON&size=256',
+          'https://www.coen-plus.nl/blog/post/warmtepomp-beste', 'De best geteste warmtepomp van 2026 - Coen+', null, []]
+      ]
+    ], [
+      [], 'Searched the web', 'Google Search', 'https://www.gstatic.com/images/branding/search.png', [], 'Searched the web', '',
+      [
+        ['https://t3.gstatic.com/faviconV2?url=https://www.eigenhuis.nl&client=BARD&type=FAVICON&size=256',
+          'https://www.eigenhuis.nl/verduurzamen/verwarmen/warmtepomp', 'De 6 nieuwste warmtepompen - Vereniging Eigen Huis', null, []]
+      ]
+    ]]]
+  ]);
+
+  const GEMINI_LIVE_BODY = 'f.req=' + encodeURIComponent(JSON.stringify([
+    null, JSON.stringify([['Welke warmtepompen krijgen in 2026 de beste reviews in Nederland?', 0, null, null, null, null, 0], ['nl'], null,
+      '!' + 'AbC9_x-'.repeat(300), 'f3a9c1d2e4b5a6978899aabbccddeeff'])
+  ])) + '&at=AAAAxyz%3A123';
+
+  const GEMINI_OPTS = { host: 'gemini.google.com', href: 'https://gemini.google.com/app/e5e09f6fd82a1175',
+    endpoint: 'https://gemini.google.com/_/BardChatUi/data/assistant.lamda.BardFrontendService/StreamGenerate?bl=x&rt=c' };
+
+  const geminiLive = await runInterceptor(
+    batch([[['wrb.fr', null, GEMINI_LIVE_INNER]], [['e', 49, null, null, 629729]]]),
+    GEMINI_LIVE_BODY,
+    Object.assign({ asRequest: true, readVia: 'body' }, GEMINI_OPTS)
+  );
+  const glStarts = geminiLive.filter((e) => e.type === 'turn-start');
+  ok(glStarts.length === 1, 'één opname', glStarts.length);
+  ok(glStarts.length === 1 && /warmtepompen/.test(glStarts[0].payload.prompt),
+    'prompt gelezen uit een Request-object, waarvan fetch de body verbruikt', glStarts[0] && glStarts[0].payload.prompt);
+  ok(glStarts.length === 1 && glStarts[0].payload.prompt === 'Welke warmtepompen krijgen in 2026 de beste reviews in Nederland?',
+    'de prompt is de vraag, niet het veel langere sessietoken ernaast', glStarts[0] && glStarts[0].payload.prompt.slice(0, 60));
+  const glFinal = geminiLive.filter((e) => e.type === 'turn-update').pop();
+  const glTurn = glFinal ? libs.FanoutParser.buildTurns(glFinal.payload)[0] : null;
+  ok(!!glTurn && glTurn.conversationId === 'e5e09f6fd82a1175', 'conversatie-id zonder c_-voorvoegsel', glTurn && glTurn.conversationId);
+  ok(!!glTurn && glTurn.sources.length === 3, 'drie bronnen uit de zoekstappen', glTurn && glTurn.sources.map((s) => s.url));
+  ok(!!glTurn && glTurn.sources.every((s) => !/gstatic/.test(s.url) && !/^https?:/.test(s.title)),
+    'de favicon-url is geen bron en geen titel', glTurn && glTurn.sources.map((s) => s.title));
+  const consb = glTurn && glTurn.sources.find((s) => s.domain === 'consumentenbond.nl');
+  ok(!!consb && consb.title === 'Beste warmtepomp 2026 | testresultaten', 'titel van het zoekresultaat', consb && consb.title);
+  ok(!!glTurn && /Compress 5800i/.test(glTurn.answer), 'antwoord vastgelegd');
+  ok(!!glTurn && glTurn.fanout.length === 0,
+    'geen verzonnen queries: de vaste labels van een zoekstap tellen niet als zoekopdracht', glTurn && glTurn.fanout.map((q) => q.q));
+
+  // De tientallen losse RPC's over batchexecute mogen geen turns opleveren.
+  const geminiNoise = await runInterceptor(
+    batch([[['wrb.fr', 'ESY5D', JSON.stringify([['Dit is een instelling met een flink lange beschrijvende tekst erbij, puur ruis.', null, 1]])]]]),
+    'f.req=' + encodeURIComponent(JSON.stringify([[['ESY5D', '[["bard_activity_enabled"]]', null, 'generic']]])),
+    { host: 'gemini.google.com', href: 'https://gemini.google.com/app/e5e09f6fd82a1175',
+      endpoint: 'https://gemini.google.com/_/BardChatUi/data/batchexecute?rpcids=ESY5D', asRequest: true }
+  );
+  ok(geminiNoise.filter((e) => e.type === 'turn-update').length === 0,
+    'een RPC zonder bronnen of zoekopdrachten levert geen turn op', geminiNoise.map((e) => e.type).join(','));
 
   /* =================================================================== */
   section('11. Aggregatie over meerdere providers');
