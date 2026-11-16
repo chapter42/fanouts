@@ -189,6 +189,10 @@ en krijgt daar één gecombineerde resultatenset op terug. Een exacte koppeling
 *query → specifieke bron* zit dus niet in de data. Bronnen worden toegekend aan de
 tool-call waar ze bij horen, niet aan één losse query. De UI benoemt dat expliciet.
 
+**Gemini geeft geen zoekopdrachten prijs.** De zoekstap staat in het antwoord, met de
+resultaten erbij, maar het veld voor de zoekopdracht zelf is leeg. Van Gemini leg je dus
+bronnen, antwoord, prompt en entiteiten vast, en geen fan-out queries.
+
 **Gemini is het fragielst.** ChatGPT's formaat is precies bekend en volledig getest.
 Perplexity's twee payloadvormen zijn allebei gedekt, maar dat formaat verschuift het
 snelst. Gemini's positionele codering heeft geen veldnamen om op te ankeren; verandert

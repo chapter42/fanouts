@@ -269,39 +269,34 @@ turns.push(capture({
 
 /* -------------------------------------------------------------- Gemini */
 
+// Gemini geeft de tekst van zijn zoekopdrachten niet meer prijs. De fixture
+// volgt dat, anders tonen de previews en storescreenshots iets wat een
+// gebruiker nooit te zien krijgt.
+
 turns.push(capture({
-  provider: 'gemini', conv: 'c_7a6b5c4d3e2f', promptId: 'r_gem1', ago: 8 * 3600000,
+  provider: 'gemini', conv: '7a6b5c4d3e2f', promptId: 'r_gem1', ago: 8 * 3600000,
   model: 'gemini-3-pro',
   prompt: 'Welke laadpaal kan ik het beste thuis laten installeren in 2026?',
-  queries: [
-    'beste laadpaal thuis 2026 test',
-    'laadpaal installatie kosten nederland',
-    'Alfen Eve Single Pro review',
-    'laadpaal subsidie nederland 2026'
-  ],
+  queries: [],
   sources: [
-    { url: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/AbCdEf123', domain: 'anwb.nl', title: 'Laadpalen voor thuis — ANWB' },
-    { url: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/GhIjKl456', domain: 'alfen.com', title: 'Alfen Eve Single Pro-line' },
-    { url: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/MnOpQr789', domain: 'easee.com', title: 'Easee Home laadpaal' },
-    { url: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/StUvWx012', domain: 'milieucentraal.nl', title: 'Elektrisch rijden — Milieu Centraal' }
+    { url: 'https://www.anwb.nl/auto/elektrisch-rijden/laadpaal-thuis', domain: 'anwb.nl', title: 'Laadpalen voor thuis — ANWB' },
+    { url: 'https://alfen.com/nl/laadpalen/eve-single-pro-line', domain: 'alfen.com', title: 'Alfen Eve Single Pro-line' },
+    { url: 'https://easee.com/nl/thuis-laden/', domain: 'easee.com', title: 'Easee Home laadpaal' },
+    { url: 'https://www.milieucentraal.nl/duurzaam-vervoer/elektrische-auto/', domain: 'milieucentraal.nl', title: 'Elektrisch rijden — Milieu Centraal' }
   ],
   answer: 'De Alfen Eve Single Pro-line is de veiligste keuze voor een Nederlandse woning dankzij dynamische ' +
     'load balancing. Easee Home is compacter en goedkoper. Reken op 900 tot 1400 euro inclusief installatie.'
 }));
 
 turns.push(capture({
-  provider: 'gemini', conv: 'c_1f2e3d4c5b6a', promptId: 'r_gem2', ago: 4 * DAY,
+  provider: 'gemini', conv: '1f2e3d4c5b6a', promptId: 'r_gem2', ago: 4 * DAY,
   model: 'gemini-3-flash',
   prompt: 'Welke CRM-systemen worden het meest gebruikt door Nederlandse MKB-bedrijven?',
-  queries: [
-    'meest gebruikte CRM Nederland MKB marktaandeel',
-    'Exact Online CRM koppeling',
-    'Teamleader marktaandeel Benelux'
-  ],
+  queries: [],
   sources: [
-    { url: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/YzAbCd345', domain: 'hubspot.com', title: 'HubSpot CRM' },
-    { url: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/EfGhIj678', domain: 'exact.com', title: 'Exact Online CRM' },
-    { url: 'https://vertexaisearch.cloud.google.com/grounding-api-redirect/KlMnOp901', domain: 'chapter42.com', title: 'CRM-vergelijking voor het MKB — Chapter42' }
+    { url: 'https://www.hubspot.com/products/crm', domain: 'hubspot.com', title: 'HubSpot CRM' },
+    { url: 'https://www.exact.com/nl/software/exact-online/crm', domain: 'exact.com', title: 'Exact Online CRM' },
+    { url: 'https://chapter42.com/blog/crm-vergelijking', domain: 'chapter42.com', title: 'CRM-vergelijking voor het MKB — Chapter42' }
   ],
   answer: 'HubSpot, Teamleader en Exact Online zijn de meest gebruikte CRM-systemen in het Nederlandse MKB. ' +
     'Exact Online wordt vooral gekozen vanwege de boekhoudkoppeling.'

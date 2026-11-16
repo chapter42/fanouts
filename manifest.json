@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Fanouts — AI query fan-out monitor",
-  "version": "0.3.4",
-  "description": "Zie welke zoekopdrachten ChatGPT, Perplexity en Gemini voor jouw vraag uitvoeren. Bronnen en entiteiten erbij, alles lokaal.",
+  "version": "0.4.0",
+  "description": "Zie welke zoekopdrachten en bronnen AI-assistenten voor jouw vraag gebruiken. Op ChatGPT, Perplexity en Gemini. Alles lokaal.",
   "permissions": [
     "storage",
     "unlimitedStorage",

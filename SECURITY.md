@@ -17,9 +17,11 @@ terechtkomt, en wat er níét gebeurt.
 ### Meelezen
 
 De extensie injecteert op de drie ondersteunde hosts een script in de
-**MAIN-world** (de JavaScript-context van de pagina zelf) dat `window.fetch` en
-`XMLHttpRequest` omwikkelt. Bij een match wordt uitsluitend een **clone** van de
-response gelezen; de response die de pagina zelf krijgt blijft ongemoeid en er
+**MAIN-world** (de JavaScript-context van de pagina zelf) dat `window.fetch`,
+`XMLHttpRequest` en de leesmethoden van `Response` omwikkelt. Die laatste zijn er
+omdat een andere extensie de `fetch`-route kan uitschakelen; op het moment dat de
+pagina een antwoord uitleest, herkennen we het dan alsnog aan zijn adres. Bij een
+match wordt uitsluitend een **clone** van de response gelezen; de response die de pagina zelf krijgt blijft ongemoeid en er
 worden geen requests toegevoegd, gewijzigd of geblokkeerd.
 
 Dat is een reële bevoegdheid en het is goed om te weten dat je die geeft: code van

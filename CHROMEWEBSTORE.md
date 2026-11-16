@@ -1,6 +1,6 @@
 # Chrome Web Store Listing — Fanouts
 
-> Last Updated: 2026-07-27 · Extensieversie 0.3.4 · **nog niet ingediend**
+> Last Updated: 2026-11-16 · Extensieversie 0.4.0 · **nog niet ingediend**
 
 Dit bestand is de bron voor alles wat je in het Chrome Developer Dashboard moet
 invullen. Het wordt **niet** meegeleverd in het ZIP-bestand.
@@ -18,9 +18,9 @@ een bekende afwijzingsgrond.
 
 **Short Description** (max 132)
 ```
-Zie welke zoekopdrachten ChatGPT, Perplexity en Gemini voor jouw vraag uitvoeren. Bronnen en entiteiten erbij, alles lokaal.
+Zie welke zoekopdrachten en bronnen AI-assistenten voor jouw vraag gebruiken. Op ChatGPT, Perplexity en Gemini. Alles lokaal.
 ```
-124 tekens. Identiek aan `description` in `manifest.json`.
+125 tekens. Identiek aan `description` in `manifest.json`.
 
 **Detailed Description**
 
@@ -34,7 +34,7 @@ voorkomen.
 
 WAT JE ZIET
 • De zoekopdrachten achter elk antwoord, met hun type: herformulering,
-  vergelijking, prijsvraag, actualiteit
+  vergelijking, prijsvraag, actualiteit (op ChatGPT en Perplexity)
 • Welke websites zijn geraadpleegd en welke daarvan daadwerkelijk zijn geciteerd
 • Welke merken, producten en plaatsen voorkomen — en welke daarvan de assistent
   zélf toevoegde, terwijl ze niet in jouw vraag stonden
@@ -45,9 +45,13 @@ WAT JE ZIET
 HOE JE HET GEBRUIKT
 1. Klik op het Fanouts-icoon in je werkbalk om het zijpaneel te openen
 2. Stel op ChatGPT, Perplexity of Gemini een vraag waarvoor het web geraadpleegd
-   wordt — de zoekopdrachten verschijnen live in het paneel
+   wordt — zoekopdrachten en bronnen verschijnen live in het paneel
 3. Open het dashboard voor de analyse over alle gesprekken heen
 4. Exporteer naar JSON, CSV of Markdown
+
+GOED OM TE WETEN
+Gemini geeft de tekst van zijn zoekopdrachten niet prijs. Daar zie je wel de
+geraadpleegde bronnen, het antwoord en de entiteiten, maar geen zoekopdrachten.
 
 VOOR WIE
 Voor iedereen die wil weten hoe AI-assistenten aan hun informatie komen. Werk je
@@ -273,7 +277,8 @@ takedown-meldingen naartoe. Houd het in de gaten.
 
 | Versie | Datum | Wijzigingen | Status |
 |---|---|---|---|
-| 0.3.4 | 2026-07-27 | Eerste voorbereiding voor de store: listing, privacybeleid, verpakkingsscript, vijf screenshots. Manifest-beschrijving ingekort tot binnen de limiet van 132 tekens. | Draft |
+| 0.4.0 | 2026-11-16 | Opname hersteld op alle drie de assistenten na formaatwijzigingen; blijft werken naast andere extensies die `fetch` beheren. Listing aangepast: Gemini geeft geen zoekopdrachten meer prijs. `npm run dist` bouwt de indienmap. | Draft |
+| 0.3.4 | 2026-07-27 | Eerste voorbereiding voor de store: listing, privacybeleid, verpakkingsscript, vijf screenshots. Manifest-beschrijving ingekort tot binnen de limiet van 132 tekens. | Niet ingediend |
 
 ---
 
@@ -296,17 +301,28 @@ takedown-meldingen naartoe. Houd het in de gaten.
 - [x] Privacybeleid live en geverifieerd (HTTP 200, inhoud compleet)
 - [ ] **Contactadres leesbaar zonder JavaScript** — zie de waarschuwing hierboven
 - [ ] Data-disclosure-formulier ingevuld conform de tabel hierboven
-- [ ] Extensie uitgepakt getest op alle drie de assistenten, console schoon
+- [x] Extensie uitgepakt getest op alle drie de assistenten (16 november 2026, versie 0.4.0)
+- [ ] Console nagelopen op fouten tijdens zo'n test — nog niet gedaan
+- [ ] Indienmap gebouwd met `npm run dist` en `dist/INDIENEN.md` gevolgd
 
 ### Known Issues / Limitations
 
 Eerlijk melden is beter dan wachten tot een reviewer of gebruiker het vindt.
 
+- **Gemini geeft geen zoekopdrachten prijs.** De zoekstap staat in het antwoord,
+  met de resultaten erbij, maar het veld voor de zoekopdracht zelf is leeg en de
+  interface van Gemini toont hem ook niet. Bronnen, antwoord, prompt en entiteiten
+  worden wel vastgelegd. De listing zegt dit; een reviewer die op Gemini test ziet
+  dus wat er beloofd is.
 - **Gemini is het minst betrouwbaar.** Google codeert de antwoorden in
   positionele arrays zonder veldnamen. Verandert die codering, dan levert de
   extractie mínder op in plaats van een fout — lege Gemini-turns zijn het signaal.
-- **Perplexity schuift het snelst.** Twee payloadvormen zijn gedekt, maar dit
-  formaat verandert het vaakst van de drie.
+- **Perplexity schuift het snelst.** Drie payloadvormen zijn gedekt, maar dit
+  formaat verandert het vaakst van de drie. Getest zonder account; Pro Search met
+  een ingelogd account is niet live nagelopen.
+- **Alle drie de formaten zijn in november 2026 verschoven** en hersteld in 0.4.0.
+  Reken erop dat dit terugkomt: een extensie die meeleest met interne formaten
+  heeft onderhoud nodig.
 - **Zoekopdracht → bron is niet 1-op-1.** Een assistent bundelt meerdere
   zoekopdrachten in één aanroep en krijgt daar één gecombineerde resultatenset op
   terug. De koppeling is per aanroep, niet per losse zoekopdracht. De interface
@@ -315,6 +331,16 @@ Eerlijk melden is beter dan wachten tot een reviewer of gebruiker het vindt.
   dat het volledige gesprek teruggeeft.
 - **Lokale opslag is niet versleuteld.** Wie toegang heeft tot het Chrome-profiel
   kan de opgeslagen gesprekken lezen. Dit staat ook in het privacybeleid.
+
+### Hoe het meelezen werkt
+
+Voor wie een vraag van een reviewer moet beantwoorden. In de context van de pagina
+worden `fetch`, `XMLHttpRequest` en de leesmethoden van `Response` (`body`, `text`,
+`json`, `arrayBuffer`, `clone`) omwikkeld. De tweede route bestaat omdat een andere
+extensie de eerste kan uitschakelen. In alle gevallen wordt alleen een **clone**
+gelezen: de response die de pagina krijgt wordt niet gewijzigd, vertraagd of
+geblokkeerd, en er komt geen enkele aanroep bij. [SECURITY.md](SECURITY.md)
+beschrijft dit voor gebruikers.
 
 ### Risico's bij de review
 

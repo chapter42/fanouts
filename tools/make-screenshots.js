@@ -101,9 +101,9 @@ const SHOTS = [
       <div class="shot-note">
         <span class="tag">Zijpaneel</span>
         <h1>De zoekopdrachten achter elk antwoord</h1>
-        <p>ChatGPT, Perplexity en Gemini formuleren zelf meerdere zoekopdrachten uit jouw
-        vraag. Fanouts legt ze live vast — met het type, de bronnen die eruit kwamen en
-        de merken die erin voorkomen.</p>
+        <p>Een AI-assistent formuleert zelf meerdere zoekopdrachten uit jouw vraag.
+        Fanouts legt ze live vast op ChatGPT en Perplexity — met het type, de bronnen
+        die eruit kwamen en de merken die erin voorkomen. Van Gemini zie je de bronnen.</p>
       </div>`
   },
   {
