@@ -28,7 +28,7 @@
     var queries = new U.QuerySet();
     var related = new U.QuerySet();
     var sources = new U.SourceSet();
-    var out = { prompt: '', answer: '', model: null, conversationId: null, title: '' };
+    var out = { prompt: '', answer: '', model: null, conversationId: null, title: '', promptId: null };
 
     var deep;
     try { deep = U.deepJsonParse(root); } catch (e) { deep = root; }
@@ -63,6 +63,7 @@
         }
         // --- context ------------------------------------------------------
         if (key === 'query_str' && typeof node === 'string' && node.length > out.prompt.length) out.prompt = node;
+        if (key === 'frontend_uuid' && typeof node === 'string' && node && !out.promptId) out.promptId = node;
         if ((key === 'display_model' || key === 'model' || key === 'mode') && typeof node === 'string' && !out.model) out.model = node;
         if ((key === 'context_uuid' || key === 'thread_url_slug' || key === 'backend_uuid') && typeof node === 'string' && !out.conversationId) {
           out.conversationId = node;
@@ -94,6 +95,7 @@
       sources: sources.list,
       related: related.list.map(function (r) { return r.q; }),
       prompt: out.prompt,
+      promptId: out.promptId,
       answer: out.answer,
       model: out.model,
       conversationId: out.conversationId
@@ -109,6 +111,7 @@
     this.answer = '';
     this.prompt = ctx.prompt || '';
     this.model = null;
+    this.promptId = null;
     this.conversationId = ctx.conversationId || null;
     this.dirty = false;
   }
@@ -125,6 +128,7 @@
     if (e.answer.length > this.answer.length) this.answer = e.answer;
     if (e.prompt && e.prompt.length > this.prompt.length) this.prompt = e.prompt;
     if (e.model && !this.model) this.model = e.model;
+    if (e.promptId && !this.promptId) this.promptId = e.promptId;
     if (e.conversationId && !this.conversationId) this.conversationId = e.conversationId;
     this.dirty = true;
   };
@@ -151,7 +155,10 @@
       title: this.prompt.slice(0, 80),
       model: this.model,
       prompt: this.prompt,
-      promptId: this.ctx.promptId || null,
+      // Het id uit de stream gaat voor dat uit de request: opent de gebruiker een
+      // sessie opnieuw, dan stuurt Perplexity dezelfde beurt nog eens, zonder dat
+      // er een request met dat id aan voorafging. Zo blijft het één turn.
+      promptId: this.promptId || this.ctx.promptId || null,
       promptTime: this.ctx.promptTime || Date.now(),
       pageUrl: location.href,
       fanout: this.queries.list,

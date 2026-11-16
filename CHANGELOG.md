@@ -65,7 +65,9 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
   `/search/<slug>`, en werden twee staptitels als zoekopdracht gelezen
   ("Searching the web" als `the web`, "Zoekt prijzen voor …" als `t prijzen voor
   …`). Het conversatie-id volgt nu de URL, zodat de turn onder *Deze conversatie*
-  valt. *Viel niet eerder op omdat de testfixture frames met `\n\n` aanleverde.*
+  valt. De turn hangt aan het id uit de stream zelf, zodat een sessie die opnieuw
+  wordt geopend (Perplexity stuurt de beurt dan nog eens) geen tweede turn
+  oplevert. *Viel niet eerder op omdat de testfixture frames met `\n\n` aanleverde.*
 - Gemini stuurt de tekst van zijn zoekopdrachten niet meer mee: het veld in de
   zoekstap is leeg. Bronnen, antwoord en prompt worden opgenomen, zoekopdrachten
   niet. Er staat een test op dat de vaste labels van een zoekstap ("Searched the

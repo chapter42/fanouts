@@ -663,6 +663,7 @@ const LEGACY_STREAM = sse([
     context_uuid: 'fb314c01-3f72-410e-82f1-b2c8d60cfdac',
     thread_url_slug: '64d2f8ab-7913-421b-ac4c-8d69d20e511c',
     display_model: 'turbo',
+    frontend_uuid: 'fe-live-1',
     query_str: 'Welke bakfiets heeft de laagste prijs in Nederland?'
   };
   const PPLX_LIVE_FRAMES = [
@@ -714,6 +715,18 @@ const LEGACY_STREAM = sse([
   ok(!!plTurn && plTurn.conversationUrl === 'https://www.perplexity.ai/session/' + PPLX_SESSION,
     'link naar de conversatie gebruikt /session/', plTurn && plTurn.conversationUrl);
   ok(!!plTurn && plTurn.fanout.filter((q) => q.kind === 'related').length === 1, 'vervolgvraag opgepikt');
+
+  // Opent de gebruiker de sessie opnieuw, dan komt dezelfde beurt nog eens
+  // binnen, nu zonder request met een prompt-id. Dat moet dezelfde turn blijven.
+  const pplxReplay = await runInterceptor(PPLX_LIVE, JSON.stringify({ params: { mode: 'copilot' } }), {
+    host: 'www.perplexity.ai', href: 'https://www.perplexity.ai/session/' + PPLX_SESSION,
+    endpoint: 'https://www.perplexity.ai/rest/sse/perplexity_ask'
+  });
+  const prFinal = pplxReplay.filter((e) => e.type === 'turn-update').pop();
+  const prTurn = prFinal ? libs.FanoutParser.buildTurns(prFinal.payload)[0] : null;
+  ok(!!plTurn && !!prTurn && prTurn.id === plTurn.id && /:fe-live-1$/.test(plTurn.id),
+    'een opnieuw gestuurde beurt krijgt dezelfde turn-id, op het id uit de stream',
+    (plTurn && plTurn.id) + ' | ' + (prTurn && prTurn.id));
 
   // Een nieuwe vraag begint op /search/new/<uuid>; "new" is geen conversatie.
   const pplxNew = await runInterceptor(PPLX_LIVE, PPLX_BODY, {
