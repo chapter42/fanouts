@@ -38,6 +38,9 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
   daardoor niet aan een tool-call en kregen geen bronnen.
 - De prompt komt ook binnen als de request body buiten bereik is: uit het
   `input_message`-event, of uit het user-bericht aan het begin van de stream.
+- Een turn zonder prompt en zonder prompt-id kreeg een sleutel op basis van de
+  klok, en dus een nieuwe, lege turn bij elke tussentijdse update van dezelfde
+  stream. Elke stream draagt nu één vaste sleutel waar de parser op terugvalt.
 
 ## [Unreleased]
 

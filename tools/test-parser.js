@@ -83,7 +83,7 @@ function runInterceptor(sseText, requestBody, opts) {
 
   // De interceptor patcht Response.prototype, en dat is hier Node's eigen
   // Response. Zonder herstel stapelen de patches van elke run zich op.
-  const RESPONSE_KEYS = ['clone', 'body', 'text', 'json', 'arrayBuffer'];
+  const RESPONSE_KEYS = ['clone', 'body', 'text', 'json', 'arrayBuffer', 'url'];
   const pristine = RESPONSE_KEYS.map((k) => Object.getOwnPropertyDescriptor(Response.prototype, k));
   const restoreResponse = () => RESPONSE_KEYS.forEach((k, i) => Object.defineProperty(Response.prototype, k, pristine[i]));
 
@@ -99,11 +99,12 @@ function runInterceptor(sseText, requestBody, opts) {
         controller.close();
       }
     });
-    const res = new Response(stream, { status: 200, headers: { 'content-type': 'text/event-stream' } });
-    // Een zelfgebouwde Response heeft geen url; een echte fetch-response wel.
-    Object.defineProperty(res, 'url', { value: String(url) });
-    return res;
+    return new Response(stream, { status: 200, headers: { 'content-type': 'text/event-stream' } });
   };
+
+  // Een zelfgebouwde Response heeft geen url; een echte fetch-response wel, en
+  // zijn clones ook. Juist die clones met dezelfde url maken dubbel tappen mogelijk.
+  Object.defineProperty(Response.prototype, 'url', { configurable: true, get() { return endpoint; } });
 
   /*
    * Bootst een andere extensie na die window.fetch als accessor installeert
@@ -836,6 +837,14 @@ const LEGACY_STREAM = sse([
   ok(hijackedNewTurns.length === 1 && hijackedNewTurns[0].prompt.indexOf('bakfietsen van 2026') !== -1 &&
     hijackedNewTurns[0].fanout.length === 2 && hijackedNewTurns[0].answer.indexOf('Gazelle Makki') !== -1,
     'nieuwe conversatie: prompt, queries en antwoord compleet');
+
+  // Geen prompt in de request body bereikbaar én geen user-bericht in de stream
+  // (zoals bij opnieuw genereren): de turn mag dan niet per update verspringen.
+  const promptless = await runInterceptor(STREAM, REQUEST_BODY, { hijack: true, readVia: 'body' });
+  const promptlessIds = promptless.filter((e) => e.type === 'turn-update')
+    .map((e) => libs.FanoutParser.buildTurns(e.payload).map((t) => t.id).join('|'));
+  ok(promptlessIds.length > 0 && new Set(promptlessIds).size === 1 && /:stream-/.test(promptlessIds[0]),
+    'zonder prompt houdt de turn één vaste sleutel in plaats van een nieuwe per update', promptlessIds);
 
   const hijackedText = await runInterceptor(LIVE_STREAM, REQUEST_BODY, { hijack: true });
   ok(hijackedText.filter((e) => e.type === 'turn-update' && e.payload.done).length === 1,

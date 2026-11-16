@@ -29,6 +29,20 @@
     }
   }
 
+  /*
+   * Elke stream krijgt één vaste sleutel mee. Ontbreken prompt en prompt-id
+   * (opnieuw genereren, of een route zonder request body), dan valt parser.js
+   * daarop terug in plaats van op de klok — anders levert elke tussentijdse
+   * update een nieuwe, lege turn op.
+   */
+  function keyedEmit() {
+    var streamKey = 'stream-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+    return function (type, payload) {
+      if (payload && !payload.streamKey) payload.streamKey = streamKey;
+      emit(type, payload);
+    };
+  }
+
   function urlOf(input) {
     if (typeof input === 'string') return input;
     if (input && typeof input.url === 'string') return input.url;
@@ -78,6 +92,14 @@
     return copy;
   };
 
+  // De clone waarop wíj lezen hoort ook bij de familie. Anders herkent het
+  // vangnet hem aan zijn url als een nieuwe response en tapt hem nog eens af.
+  function ownClone(res) {
+    var copy = nativeClone.call(res);
+    families.set(copy, familyOf(res));
+    return copy;
+  }
+
   /* --------------------------------------------------------------- fetch */
 
   var originalFetch = window.fetch;
@@ -90,7 +112,7 @@
   async function tapStream(res, args, descriptor) {
     // Eerst claimen: res.body uitlezen loopt zelf al door het Response-vangnet.
     if (!res || !res.ok || !claim(res) || !res.body) return;
-    var clone = nativeClone.call(res);
+    var clone = ownClone(res);
     var ctx = {};
     try {
       ctx = provider.promptFromRequest(await readRequestBody(args)) || {};
@@ -106,12 +128,13 @@
       promptTime: ctx.promptTime || Date.now(),
       pageUrl: location.href
     });
-    if (clone.body) provider.consumeStream(clone.body, ctx, emit);
+    var body = bodyDescriptor && bodyDescriptor.get ? bodyDescriptor.get.call(clone) : clone.body;
+    if (body) provider.consumeStream(body, ctx, keyedEmit());
   }
 
   async function tapJson(res, descriptor) {
     if (!res || !res.ok || !provider.consumeJson || !claim(res)) return;
-    var json = await nativeClone.call(res).json();
+    var json = await ownClone(res).json();
     provider.consumeJson(json, { conversationId: descriptor.conversationId || null }, emit);
   }
 
@@ -164,7 +187,7 @@
     var descriptor = provider.match(res.url, 'POST') || provider.match(res.url, 'GET');
     if (!descriptor || !claim(res)) return;
 
-    var clone = nativeClone.call(res);
+    var clone = ownClone(res);
     if (descriptor.type === 'stream') {
       var now = Date.now();
       var ctx = { prompt: '', promptId: null, promptTime: now, conversationId: descriptor.conversationId || null };
@@ -176,15 +199,7 @@
         promptTime: now,
         pageUrl: location.href
       });
-      // Een capture zonder prompt en zonder id krijgt in parser.js een sleutel op
-      // basis van de klok, en dus een nieuwe turn bij elke tussentijdse update.
-      // Eén vaste sleutel per stream voorkomt dat. Payloads met ruwe messages
-      // blijven ongemoeid: daar levert het user-bericht in de stream de sleutel.
-      var streamKey = 'stream-' + now;
-      provider.consumeStream(bodyDescriptor.get.call(clone), ctx, function (type, payload) {
-        if (payload && payload.capture && !payload.promptId && !payload.prompt) payload.promptId = streamKey;
-        emit(type, payload);
-      });
+      provider.consumeStream(bodyDescriptor.get.call(clone), ctx, keyedEmit());
       return;
     }
     if (provider.consumeJson) readJsonClone(clone, descriptor);

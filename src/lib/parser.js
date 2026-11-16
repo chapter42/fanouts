@@ -425,7 +425,7 @@
    */
   function buildTurnFromCapture(cap) {
     var conversationId = cap.conversationId || 'unknown';
-    var key = cap.promptId || promptKey(cap.prompt) || ('t' + Date.now());
+    var key = cap.promptId || promptKey(cap.prompt) || cap.streamKey || ('t' + Date.now());
     var turn = newTurn(conversationId, key, {
       provider: cap.provider,
       prompt: cap.prompt || '',
@@ -517,7 +517,7 @@
           source: payload.source || 'stream'
         };
       } else {
-        key = payload.promptId || ('t' + Date.now());
+        key = payload.promptId || payload.streamKey || ('t' + Date.now());
         opts = {
           prompt: payload.prompt || '',
           promptId: payload.promptId || null,
