@@ -81,6 +81,13 @@
   }
 
   /*
+   * SSE staat CRLF toe als regeleinde, en Perplexity gebruikt het. Wie alleen
+   * op "\n\n" splitst, ziet dan geen enkele framegrens. Op de hele buffer
+   * vervangen, zodat ook een CRLF die over twee brokken valt wordt meegenomen.
+   */
+  function normaliseEol(text) { return text.indexOf('\r') === -1 ? text : text.replace(/\r\n/g, '\n'); }
+
+  /*
    * SSE-frames uit een ReadableStream. onEvent krijgt de samengevoegde
    * data-regels van één frame; onEnd loopt als de stream klaar is.
    */
@@ -116,10 +123,10 @@
         for (;;) {
           const { done, value } = await reader.read();
           if (done) break;
-          buffer += decoder.decode(value, { stream: true });
+          buffer = normaliseEol(buffer + decoder.decode(value, { stream: true }));
           flush(false);
         }
-        buffer += decoder.decode();
+        buffer = normaliseEol(buffer + decoder.decode());
         flush(true);
       } catch (err) {
         // Stream afgebroken (navigatie, netwerk). Wat we hebben is nog bruikbaar.
@@ -132,7 +139,7 @@
   /* Splitst een complete SSE-body in losse data-payloads. */
   function splitSseText(text) {
     var out = [];
-    String(text || '').split(/\n\n/).forEach(function (block) {
+    normaliseEol(String(text || '')).split(/\n\n/).forEach(function (block) {
       var data = [];
       block.split('\n').forEach(function (line) {
         if (line.indexOf('data:') === 0) data.push(line.slice(5).replace(/^ /, ''));

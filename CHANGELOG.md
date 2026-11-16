@@ -58,6 +58,16 @@ Alle noemenswaardige wijzigingen aan Fanouts. Opzet volgt
   sluiten, en won de favicon-url het niet meer van de titel van een zoekresultaat.
   *Viel niet eerder op omdat lege Gemini-turns het afgesproken signaal van
   formaatdrift zijn, en niemand keek: de fixture voerde het oude formaat.*
+- **Perplexity leverde alleen nog de prompt op.** De stream gebruikt CRLF als
+  regeleinde en de SSE-lezer splitste alleen op `\n\n`, dus er werd geen enkele
+  framegrens gevonden. Daarnaast staat het antwoord nu als tekst-item in de
+  workflow, leeft een conversatie op `/session/<uuid>` in plaats van
+  `/search/<slug>`, en werden twee staptitels als zoekopdracht gelezen
+  ("Searching the web" als `the web`, "Zoekt prijzen voor …" als `t prijzen voor
+  …`). Het conversatie-id volgt nu de URL, zodat de turn onder *Deze conversatie*
+  valt. De turn hangt aan het id uit de stream zelf, zodat een sessie die opnieuw
+  wordt geopend (Perplexity stuurt de beurt dan nog eens) geen tweede turn
+  oplevert. *Viel niet eerder op omdat de testfixture frames met `\n\n` aanleverde.*
 - Gemini stuurt de tekst van zijn zoekopdrachten niet meer mee: het veld in de
   zoekstap is leeg. Bronnen, antwoord en prompt worden opgenomen, zoekopdrachten
   niet. Er staat een test op dat de vaste labels van een zoekstap ("Searched the

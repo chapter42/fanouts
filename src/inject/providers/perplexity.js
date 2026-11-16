@@ -20,13 +20,15 @@
   var QUERY_KEYS = /^(queries|search_queries|web_search_queries|sub_queries|expanded_queries|search_query)$/i;
   var RELATED_KEYS = /^(related_queries|related_questions|followup_queries)$/i;
   // "Searching for X" / "Search the web for X" / "Zoeken naar X"
-  var GOAL_QUERY = /^(?:search(?:ing)?(?:\s+the\s+web)?(?:\s+for)?|zoek(?:en)?(?:\s+naar)?|looking\s+up)\s*[:\-—]?\s*["“']?(.{2,300}?)["”']?\s*$/i;
+  // De \b na het werkwoord is nodig: zonder werd "Zoekt prijzen voor …", de titel
+  // van een stap, gelezen als "zoek" + de zoekopdracht "t prijzen voor …".
+  var GOAL_QUERY = /^(?:search(?:ing)?\b(?:\s+the\s+web)?(?:\s+for)?|zoek(?:en)?\b(?:\s+naar)?|looking\s+up\b)\s*[:\-—]?\s*["“']?(.{2,300}?)["”']?\s*$/i;
 
   function extract(root) {
     var queries = new U.QuerySet();
     var related = new U.QuerySet();
     var sources = new U.SourceSet();
-    var out = { prompt: '', answer: '', model: null, conversationId: null, title: '' };
+    var out = { prompt: '', answer: '', model: null, conversationId: null, title: '', promptId: null };
 
     var deep;
     try { deep = U.deepJsonParse(root); } catch (e) { deep = root; }
@@ -54,17 +56,25 @@
             var desc = g.description || g.title || g.goal || g.text;
             if (typeof desc !== 'string') return;
             var m = GOAL_QUERY.exec(desc.trim());
-            if (m) queries.add(m[1], 'search');
+            // "Searching the web" is een staptitel zonder zoekopdracht; de regex
+            // viel daar terug op "the web" als query.
+            if (m && !/^(?:the\s+)?web$/i.test(m[1].trim())) queries.add(m[1], 'search');
           });
         }
         // --- context ------------------------------------------------------
         if (key === 'query_str' && typeof node === 'string' && node.length > out.prompt.length) out.prompt = node;
+        if (key === 'frontend_uuid' && typeof node === 'string' && node && !out.promptId) out.promptId = node;
         if ((key === 'display_model' || key === 'model' || key === 'mode') && typeof node === 'string' && !out.model) out.model = node;
         if ((key === 'context_uuid' || key === 'thread_url_slug' || key === 'backend_uuid') && typeof node === 'string' && !out.conversationId) {
           out.conversationId = node;
         }
         if ((key === 'answer' || key === 'markdown') && typeof node === 'string' && node.length > out.answer.length) {
           out.answer = node;
+        }
+        // Het antwoord staat tegenwoordig als tekst-item in de workflow, naast
+        // het item met de zoekopdrachten.
+        if (key === 'text_payload' && node && typeof node.text === 'string' && node.text.length > out.answer.length) {
+          out.answer = node.text;
         }
       }
 
@@ -85,6 +95,7 @@
       sources: sources.list,
       related: related.list.map(function (r) { return r.q; }),
       prompt: out.prompt,
+      promptId: out.promptId,
       answer: out.answer,
       model: out.model,
       conversationId: out.conversationId
@@ -100,6 +111,7 @@
     this.answer = '';
     this.prompt = ctx.prompt || '';
     this.model = null;
+    this.promptId = null;
     this.conversationId = ctx.conversationId || null;
     this.dirty = false;
   }
@@ -116,6 +128,7 @@
     if (e.answer.length > this.answer.length) this.answer = e.answer;
     if (e.prompt && e.prompt.length > this.prompt.length) this.prompt = e.prompt;
     if (e.model && !this.model) this.model = e.model;
+    if (e.promptId && !this.promptId) this.promptId = e.promptId;
     if (e.conversationId && !this.conversationId) this.conversationId = e.conversationId;
     this.dirty = true;
   };
@@ -124,17 +137,28 @@
     if (!this.dirty && !done) return null;
     this.dirty = false;
     if (!this.queries.list.length && !this.sources.list.length && !this.answer && !done) return null;
-    var slug = /\/search\/([^/?#]+)/.exec(location.pathname);
+    /*
+     * De conversatie is wat er in de URL staat (/search/<slug> of /session/<id>):
+     * daar filtert het paneel op, en de uuid's in de payload komen er niet mee
+     * overeen. Een nieuwe vraag begint op /search/new/…; tot de URL is bijgewerkt
+     * wachten we, anders belandt dezelfde turn onder twee conversaties.
+     */
+    var slug = /\/(?:search|session)\/([^/?#]+)/.exec(location.pathname);
+    var fromUrl = slug && slug[1] !== 'new' ? slug[1] : null;
+    if (!fromUrl && !done) return null;
     return {
       provider: 'perplexity',
       source: 'stream',
       capture: true,
       done: !!done,
-      conversationId: this.conversationId || (slug && slug[1]) || null,
+      conversationId: fromUrl || this.conversationId || null,
       title: this.prompt.slice(0, 80),
       model: this.model,
       prompt: this.prompt,
-      promptId: this.ctx.promptId || null,
+      // Het id uit de stream gaat voor dat uit de request: opent de gebruiker een
+      // sessie opnieuw, dan stuurt Perplexity dezelfde beurt nog eens, zonder dat
+      // er een request met dat id aan voorafging. Zo blijft het één turn.
+      promptId: this.promptId || this.ctx.promptId || null,
       promptTime: this.ctx.promptTime || Date.now(),
       pageUrl: location.href,
       fanout: this.queries.list,
