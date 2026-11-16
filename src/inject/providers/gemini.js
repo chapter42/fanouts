@@ -151,6 +151,9 @@
           if (j === urlIdx || typeof node[j] !== 'string') continue;
           var str = node[j].trim();
           if (!str) continue;
+          // Een zoekresultaat draagt naast de pagina-url ook die van zijn favicon;
+          // die is langer dan de titel en won het daarom als "titel".
+          if (/^https?:\/\//i.test(str)) continue;
           if (!domain && RE_BARE_DOMAIN.test(str)) { domain = str.replace(/^www\./, ''); continue; }
           if (str.length > title.length && str.length < 300 && !RE_ID.test(str)) title = str;
         }
@@ -186,17 +189,38 @@
     };
   }
 
+  // De URL kent een conversatie als /app/<id>; de payload noemt hem c_<id>. Wij
+  // houden de URL-vorm aan, anders valt een turn nooit onder "Deze conversatie".
+  function conversationKey(id) {
+    return typeof id === 'string' ? id.replace(/^c_/, '') : id;
+  }
+
   /* ---------------------------------------------------------- accumulator */
 
   function Accumulator(ctx) {
     this.ctx = ctx;
+    // batchexecute draagt tientallen losse RPC's (instellingen, zijbalk, titels).
+    // Alleen wat aantoonbaar gegrond is op bronnen of zoekopdrachten is een turn.
+    this.rpc = !!(ctx.descriptor && ctx.descriptor.rpc);
+    this.pending = null;
     this.text = '';
     this.queries = new U.QuerySet();
     this.sources = new U.SourceSet();
     this.answer = '';
-    this.conversationId = ctx.conversationId || null;
+    this.conversationId = conversationKey(ctx.conversationId) || null;
     this.dirty = false;
   }
+
+  // StreamGenerate blijft lang open nadat het antwoord al op het scherm staat.
+  // Tussentijds meelezen dus, maar pas parsen op de tik van de timer.
+  Accumulator.prototype.offer = function (text) { this.pending = text; };
+
+  Accumulator.prototype.flush = function () {
+    if (this.pending === null) return;
+    var text = this.pending;
+    this.pending = null;
+    this.ingest(text);
+  };
 
   Accumulator.prototype.ingest = function (text) {
     this.text = text;
@@ -206,14 +230,15 @@
     e.fanout.forEach(function (q) { self.queries.add(q.q, q.kind); });
     e.sources.forEach(function (s) { self.sources.add(s); });
     if (e.answer.length > this.answer.length) this.answer = e.answer;
-    if (e.conversationId && !this.conversationId) this.conversationId = e.conversationId;
+    if (e.conversationId && !this.conversationId) this.conversationId = conversationKey(e.conversationId);
     this.dirty = true;
   };
 
   Accumulator.prototype.snapshot = function (done) {
     if (!this.dirty && !done) return null;
     this.dirty = false;
-    if (!this.queries.list.length && !this.sources.list.length && !done) return null;
+    var grounded = this.queries.list.length || this.sources.list.length;
+    if (!grounded && (!done || this.rpc)) return null;
     return {
       provider: 'gemini',
       source: 'stream',
@@ -246,7 +271,7 @@
     match: function (url, method) {
       if (method !== 'POST') return null;
       if (/StreamGenerate/i.test(url) || /BardFrontendService/i.test(url)) return { type: 'stream', raw: true };
-      if (/\/batchexecute/i.test(url)) return { type: 'stream', raw: true };
+      if (/\/batchexecute/i.test(url)) return { type: 'stream', raw: true, rpc: true };
       return null;
     },
 
@@ -267,12 +292,18 @@
       U.walk(payload, function (node) {
         if (typeof node !== 'string') return;
         if (RE_ID.test(node)) {
-          if (node.charAt(0) === 'c' && !ctx.conversationId) ctx.conversationId = node;
+          if (node.charAt(0) === 'c' && !ctx.conversationId) ctx.conversationId = conversationKey(node);
           if (node.charAt(0) === 'r' && !ctx.promptId) ctx.promptId = node;
           return;
         }
         if (node.length > best.length && node.length < 8000 && !/^https?:/i.test(node)) best = node;
       }, { maxDepth: 12 });
+
+      // De prompt is het eerste element van het eerste blok. De langste string
+      // is alleen het vangnet: f.req draagt ook een sessietoken van een paar
+      // duizend tekens, en dat won het van elke gewone vraag.
+      var first = Array.isArray(payload) && Array.isArray(payload[1]) ? payload[1][0] : null;
+      if (Array.isArray(first) && typeof first[0] === 'string' && first[0].trim()) best = first[0];
       ctx.prompt = best.trim();
       return ctx;
     },
@@ -280,12 +311,14 @@
     consumeStream: function (body, ctx, emit) {
       var acc = new Accumulator(ctx);
       var timer = setInterval(function () {
+        acc.flush();
         var snap = acc.snapshot(false);
         if (snap) emit('turn-update', snap);
       }, EMIT_INTERVAL);
 
-      U.readText(body, null, function (text) {
+      U.readText(body, function (text) { acc.offer(text); }, function (text) {
         clearInterval(timer);
+        acc.pending = null;
         acc.ingest(text);
         var snap = acc.snapshot(true);
         if (snap) emit('turn-update', snap);

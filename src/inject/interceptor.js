@@ -49,7 +49,10 @@
     try { return String(input); } catch (e) { return ''; }
   }
 
-  async function readRequestBody(args) {
+  async function readRequestBody(args, requestClone) {
+    if (requestClone) {
+      try { return await requestClone.text(); } catch (e) { return ''; }
+    }
     var init = args[1];
     if (init && typeof init.body === 'string') return init.body;
     if (init && init.body instanceof URLSearchParams) return init.body.toString();
@@ -109,17 +112,18 @@
    * response gaat direct terug naar de pagina en de analyse loopt ernaast. Zo
    * kan onze code de host-app niet vertragen, ook niet met één microtask.
    */
-  async function tapStream(res, args, descriptor) {
+  async function tapStream(res, args, descriptor, requestClone) {
     // Eerst claimen: res.body uitlezen loopt zelf al door het Response-vangnet.
     if (!res || !res.ok || !claim(res) || !res.body) return;
     var clone = ownClone(res);
     var ctx = {};
     try {
-      ctx = provider.promptFromRequest(await readRequestBody(args)) || {};
+      ctx = provider.promptFromRequest(await readRequestBody(args, requestClone)) || {};
     } catch (e) {
       ctx = {};
     }
     ctx.conversationId = ctx.conversationId || descriptor.conversationId || null;
+    ctx.descriptor = descriptor;
     emit('turn-start', {
       provider: provider.id,
       conversationId: ctx.conversationId,
@@ -149,9 +153,17 @@
     // Alles wat ons niet aangaat gaat ongewijzigd en zonder extra tick door.
     if (!descriptor) return originalFetch.apply(this, args);
 
+    // Krijgt fetch een Request-object, dan verbruikt de aanroep de body ervan en
+    // is de prompt daarna onleesbaar. De clone moet dus vóór de aanroep bestaan.
+    var requestClone = null;
+    if (descriptor.type === 'stream' && !(args[1] && args[1].body) &&
+        args[0] && typeof args[0] === 'object' && typeof args[0].clone === 'function') {
+      try { requestClone = args[0].clone(); } catch (e) { requestClone = null; }
+    }
+
     var pending = originalFetch.apply(this, args);
     pending.then(function (res) {
-      var tap = descriptor.type === 'stream' ? tapStream(res, args, descriptor) : tapJson(res, descriptor);
+      var tap = descriptor.type === 'stream' ? tapStream(res, args, descriptor, requestClone) : tapJson(res, descriptor);
       tap.catch(function (err) {
         // Meelezen mag nooit de pagina raken; loggen en verder.
         console.debug('[Fanouts] meelezen mislukt', err);
@@ -190,7 +202,10 @@
     var clone = ownClone(res);
     if (descriptor.type === 'stream') {
       var now = Date.now();
-      var ctx = { prompt: '', promptId: null, promptTime: now, conversationId: descriptor.conversationId || null };
+      var ctx = {
+        prompt: '', promptId: null, promptTime: now,
+        conversationId: descriptor.conversationId || null, descriptor: descriptor
+      };
       emit('turn-start', {
         provider: provider.id,
         conversationId: ctx.conversationId,
@@ -259,6 +274,7 @@
           var ctx = {};
           if (typeof body === 'string' && provider.promptFromRequest) ctx = provider.promptFromRequest(body) || {};
           ctx.conversationId = ctx.conversationId || descriptor.conversationId || null;
+          ctx.descriptor = descriptor;
 
           if (descriptor.type === 'json' && provider.consumeJson) {
             var json = U.safeParse(self.responseText);
